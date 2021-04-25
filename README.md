@@ -36,5 +36,15 @@ Enter some word #5/5: cool
 0xd2e21be9bdc05304b7dd4347e73d1a14009732780125db39a1eb7736d9be245
 ```
 
+We can then generate the corresponding public key, which is a point on the elliptic curve:
+
+```bash
+$ python -m cryptos.public_key 0xd2e21be9bdc05304b7dd4347e73d1a14009732780125db39a1eb7736d9be245
+x: B8B2C5DE9F39CAAB1819536285B8DE9A674C6929AAA80CF23F40715DA9A4D765
+y: E716EE6D252C9F52D7138AA73E0C43EBA2F4722613CE3077A8EFA68E1BD64596
+```
+
+This point can be compressed and then converted into a Bitcoin address (coming soon).
+
 #### License
 MIT
