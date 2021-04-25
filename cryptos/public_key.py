@@ -1,8 +1,7 @@
 """
 Function to generate a public key from a private key
 """
-
-INF = (None, None)
+from dataclasses import dataclass
 
 # -----------------------------------------------------------------------------
 def extended_euclidean_algorithm(a, b):
@@ -28,52 +27,57 @@ def inv(n, p):
     return x % p
 # -----------------------------------------------------------------------------
 
-class EllipticCurveModP:
+@dataclass
+class Curve:
+    """
+    Elliptic Curve over the field of integers modulo a prime.
+    Points on the curve satisfy y^2 = x^3 + a*x + b (mod p).
+    """
+    p: int
+    a: int
+    b: int
 
-    def __init__(self, p, r, a, b):
-        # note only p, a are actually used in the math we care about so far
-        self.p = p
-        self.r = r
-        self.a = a
-        self.b = b
+@dataclass
+class Point:
+    """ An integer point (x,y) on a Curve """
+    curve: Curve
+    x: int
+    y: int
 
-    def add(self, P, Q):
-        # unpack P,Q into its x,y components
-        px, py = P
-        qx, qy = Q
+    def __add__(self, other):
         # handle special case of P + 0 = 0 + P = 0
-        if P == INF:
-            return Q
-        if Q == INF:
-            return P
+        if self == INF:
+            return other
+        if other == INF:
+            return self
         # handle special case of P + (-P) = 0
-        if qx == px and qy != py:
+        if self.x == other.x and self.y != other.y:
             return INF
         # compute the "slope"
-        if qx == px: # we must also have qy == py since this was checked right above, so P=Q
-            m = (3 * px**2 + self.a) * inv(2 * py, self.p)
+        if self.x == other.x: # (self.y = other.y is guaranteed too per above check)
+            m = (3 * self.x**2 + self.curve.a) * inv(2 * self.y, self.curve.p)
         else:
-            m = (py - qy) * inv(px - qx, self.p)
-        # calculate the (reflected) intersection on the curve
-        rx = (m**2 - px - qx) % self.p
-        ry = (-(m*(rx - px) + py)) % self.p
-        return (rx, ry)
+            m = (self.y - other.y) * inv(self.x - other.x, self.curve.p)
+        # compute the new point
+        rx = (m**2 - self.x - other.x) % self.curve.p
+        ry = (-(m*(rx - self.x) + self.y)) % self.curve.p
+        return Point(self.curve, rx, ry)
 
-    def mul(self, k, P):
-        # return k*P for a scalar k
+    def __rmul__(self, k):
         assert isinstance(k, int) and k >= 0
         result = INF
-        append = P
+        append = self
         while k:
             if k&1 == 1:
-                result = self.add(result, append)
-            append = self.add(append, append)
+                result = result + append
+            append = append + append
             k >>= 1
         return result
 
-def gen_bitcoin_curve():
+INF = Point(None, None, None)
 
-    # the elliptic curve used in Bitcoin
+def gen_bitcoin_curve():
+    # Return the elliptic curve used in Bitcoin and the generator point
     # secp256k1, http://www.oid-info.com/get/1.3.132.0.10
     _p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
     _r = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
@@ -81,9 +85,8 @@ def gen_bitcoin_curve():
     _a = 0x0000000000000000000000000000000000000000000000000000000000000000
     _Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
     _Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
-
-    curve = EllipticCurveModP(_p, _r, _a, _b)
-    G = (_Gx, _Gy)
+    curve = Curve(_p, _a, _b)
+    G = Point(curve, _Gx, _Gy)
     return curve, G
 
 # -----------------------------------------------------------------------------
@@ -100,9 +103,8 @@ if __name__ == '__main__':
 
     # round the elliptic curve we go...
     curve, G = gen_bitcoin_curve()
-    public_key = curve.mul(private_key, G)
+    public_key = private_key * G
 
     # print the public key point on the curve
-    x, y = public_key
-    print('x:', format(x, '064x').upper()) # (strip the 0x part denoting hex number)
-    print('y:', format(y, '064x').upper())
+    print('x:', format(public_key.x, '064x').upper()) # (strip the 0x part denoting hex number)
+    print('y:', format(public_key.y, '064x').upper())
