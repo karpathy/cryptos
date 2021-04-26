@@ -1,7 +1,7 @@
 
 # cryptos
 
-Just me developing a pure Python from-scratch zero-dependency implementation of Bitcoin for educational purposes. This includes a lot of the core crypto math primitives such as SHA-256 and elliptic curves over finitie fields math (but with the exception of RIPEMD160 hash function, which I imported).
+Just me developing a pure Python from-scratch zero-dependency implementation of Bitcoin for educational purposes. This includes a lot of the core crypto math primitives such as SHA-256 and elliptic curves over finite fields math (but with the exception of RIPEMD160 hash function, which I imported).
 
 ### SHA-256
 
