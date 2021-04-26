@@ -1,11 +1,11 @@
 
 # cryptos
 
-Just having fun
+Just me developing a pure Python from-scratch zero-dependency implementation of Bitcoin for educational purposes. This includes a lot of the core crypto math primitives such as SHA-256 and elliptic curves over finitie fields math (but with the exception of RIPEMD160 hash function, which I imported).
 
-#### SHA-256
+### SHA-256
 
-SHA-256 implementation following [NIST FIPS 180-4](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf) spec in `cryptos/sha256.py`. Pure Python, slow, trying to closely follow the document spec, obviously not to be used anywhere except for educational purposes.
+My pure Python SHA-256 implementation closely following the [NIST FIPS 180-4](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf) spec, in `cryptos/sha256.py`. Since this is a from scratch pure Python implementation it is slow and obviously not to be used anywhere except for educational purposes. Example usage:
 
 ```bash
 $ echo "some test file lol" > testfile.txt
@@ -15,9 +15,9 @@ $ python -m cryptos.sha256 testfile.txt
 4a79aed64097a0cd9e87f1e88e9ad771ddb5c5d762b3c3bbf02adf3112d5d375
 ```
 
-#### Keys
+### Keys
 
-This repo has a pure Python from-scratch zero-dependency implementation for generating a new private/public key pair and the corresponding Bitcoin address (okay, except the RIPEMD160 hash function implementation that I imported). Use the cli:
+`getnewaddress.py` is a cli entryway to the code that generates a new Bitcoin private/public key pair and the corresponding (base58 compressed) address:
 
 ```bash
 $ python getnewaddress.py
