@@ -17,34 +17,33 @@ $ python -m cryptos.sha256 testfile.txt
 
 #### Keys
 
-Bitcoin elliptic curve - compatible private keys can be generated using default system entropy with:
+This repo has a pure Python from-scratch zero-dependency implementation for generating a new private/public key pair and the corresponding Bitcoin address (okay, except the RIPEMD160 hash function implementation that I imported). Use the cli:
 
 ```bash
-$ python -m cryptos.private_key
-0x5748d05ca380dbebea56e135c7671dd4221b204271a9a87bb4d3f24afa64f0e0
+$ python getnewaddress.py
+generated private key:
+0xc322622e6a0033bb93ff666753f77cc8b819d274d9edea007b7e4b2af4caf025
+corresponding public key:
+x: 5B9D87FE091D52EA4CD49EA5CEFDD8C099DF7E6CCF510A9A94C763DE38C575D5
+y: 6049637B3683076C5568EC723CF7D38FD603B88447180829BBB508C554EEA413
+compressed bitcoin address (b58check format):
+1DBGfUXnwTS2PRu8h3JefU9uYwYnyaTd2z
 ```
 
-Or to seed entropy directly from the user for generating the key:
+You can also generate your own entropy from keyboard timings if you call the cli as `$ python getnewaddress.py user`, or you can verify that the implementation is not broken by reproducing the [Mastering Bitcoin Chapter 4](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04.asciidoc) example:
 
 ```bash
-$ python -m cryptos.private_key user
-Enter some word #1/5: hi
-Enter some word #2/5: there
-Enter some word #3/5: lol
-Enter some word #4/5: entropy!
-Enter some word #5/5: cool
-0xd2e21be9bdc05304b7dd4347e73d1a14009732780125db39a1eb7736d9be245
+$ python getnewaddress.py mastering
+generated private key:
+0x3aba4162c7251c891207b747840551a71939b0de081f85c4e44cf7c13e41daa6
+corresponding public key:
+x: 5C0DE3B9C8AB18DD04E3511243EC2952002DBFADC864B9628910169D9B9B00EC
+y: 243BCEFDD4347074D44BD7356D6A53C495737DD96295E2A9374BF5F02EBFC176
+compressed bitcoin address (b58check format):
+14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3
 ```
 
-We can then generate the corresponding public key, which is a point on the elliptic curve:
-
-```bash
-$ python -m cryptos.public_key 0xd2e21be9bdc05304b7dd4347e73d1a14009732780125db39a1eb7736d9be245
-x: B8B2C5DE9F39CAAB1819536285B8DE9A674C6929AAA80CF23F40715DA9A4D765
-y: E716EE6D252C9F52D7138AA73E0C43EBA2F4722613CE3077A8EFA68E1BD64596
-```
-
-This point can be compressed and then converted into a Bitcoin address (coming soon).
+Where we see that after the all crazy hashing and elliptic curve over finite fields gymnastics the bitcoin address `14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3` matches, phew :)
 
 #### License
 MIT

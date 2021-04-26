@@ -7,6 +7,8 @@ import time
 
 from .sha256 import sha256
 
+# -----------------------------------------------------------------------------
+
 def random_bytes_os():
     """
     Use os provided entropy, e.g. on macs sourced from /dev/urandom, eg available as:
@@ -32,8 +34,17 @@ def random_bytes_user():
     entropy = ''
     for i in range(5):
         s = input("Enter some word #%d/5: " % (i+1,))
-        entropy += s + '|' + str(time.time()) + '|'
+        entropy += s + '|' + str(int(time.time() * 1000000)) + '|'
     return sha256(entropy.encode('ascii'))
+
+
+def mastering_bitcoin_bytes():
+    """
+    The example from Mastering Bitcoin, Chapter 4
+    https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04.asciidoc
+    """
+    sk = '3aba4162c7251c891207b747840551a71939b0de081f85c4e44cf7c13e41daa6'
+    return bytes.fromhex(sk)
 
 
 def gen_private_key(source: str = 'os') -> int:
@@ -41,10 +52,11 @@ def gen_private_key(source: str = 'os') -> int:
     # order of the elliptic curve used in bitcoin
     _r = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
-    assert source in ['os', 'user'], "The source must be one of 'os' or 'user'"
+    assert source in ['os', 'user', 'mastering'], "The source must be one of 'os' or 'user' or 'mastering'"
     bytes_fn = {
         'os': random_bytes_os,
         'user': random_bytes_user,
+        'mastering': mastering_bitcoin_bytes,
     }[source]
 
     while True:
@@ -53,8 +65,3 @@ def gen_private_key(source: str = 'os') -> int:
             break # the key is valid, break out
 
     return key
-
-if __name__ == '__main__':
-    import sys
-    source = sys.argv[1] if len(sys.argv) == 2 else 'os'
-    print(hex(gen_private_key(source)))
