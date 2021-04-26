@@ -32,22 +32,20 @@ def b58encode(b):
 def pk_to_address_bytes(public_key) -> bytes:
 
     # generate the compressed public key
-    prefix = '02' if public_key.y % 2 == 0 else '03'
-    hex_compressed_public_key = prefix + format(public_key.x, '064x')
+    prefix = b'\x02' if public_key.y % 2 == 0 else b'\x03'
+    pkb = prefix + public_key.x.to_bytes(32, 'big')
 
     # double hash to get the payload
-    pkb = bytes.fromhex(hex_compressed_public_key) # (1 + 32 = 33) bytes
-    pkb_sha = sha256(pkb)
-    pkb_sha_ripemd = RIPEMD160(pkb_sha).digest()
+    pkb_hash = RIPEMD160(sha256(pkb)).digest()
 
     # add version byte (0x00 for Main Network)
-    ver_pkb_sha_ripemd = b'\x00' + pkb_sha_ripemd
+    ver_pkb_hash = b'\x00' + pkb_hash
 
     # calculate the checksum
-    checksum = sha256(sha256(ver_pkb_sha_ripemd))[:4]
+    checksum = sha256(sha256(ver_pkb_hash))[:4]
 
     # append to form the full 25-byte binary Bitcoin Address
-    byte_address = ver_pkb_sha_ripemd + checksum
+    byte_address = ver_pkb_hash + checksum
 
     return byte_address
 
