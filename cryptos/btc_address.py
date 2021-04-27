@@ -3,7 +3,7 @@ Function that converts public key to (Compressed) Bitcoin address and related ut
 """
 
 from .sha256 import sha256
-from .ripemd160 import RIPEMD160
+from .ripemd160 import ripemd160
 
 # -----------------------------------------------------------------------------
 # base58 encoding / decoding utilities
@@ -36,7 +36,7 @@ def pk_to_address_bytes(public_key) -> bytes:
     pkb = prefix + public_key.x.to_bytes(32, 'big')
 
     # double hash to get the payload
-    pkb_hash = RIPEMD160(sha256(pkb)).digest()
+    pkb_hash = ripemd160(sha256(pkb))
 
     # add version byte (0x00 for Main Network)
     ver_pkb_hash = b'\x00' + pkb_hash
