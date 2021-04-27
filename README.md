@@ -45,5 +45,11 @@ compressed bitcoin address (b58check format):
 
 Where we see that after the all crazy hashing and elliptic curve over finite fields gymnastics the bitcoin address `14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3` matches, phew :)
 
-#### License
+### Unit tests
+
+```bash
+$ pytest
+```
+
+### License
 MIT
