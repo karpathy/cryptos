@@ -84,7 +84,6 @@ class Generator:
     """
     A generator over a curve: an initial point and the (pre-computed) order
     """
-    curve: Curve # an elliptic curve over finite field
     G: Point     # a generator point on the curve
     n: int       # the order of the generating point, so 0*G = n*G = INF
 
@@ -104,5 +103,5 @@ def bitcoin_gen():
     n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
     curve = Curve(p, a, b)
     G = Point(curve, Gx, Gy)
-    gen = Generator(curve, G, n)
+    gen = Generator(G, n)
     return gen
