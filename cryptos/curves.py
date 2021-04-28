@@ -1,9 +1,12 @@
 """
-Function to generate a public key from a private key
+Store of curves and generators
 """
+
 from dataclasses import dataclass
 
 # -----------------------------------------------------------------------------
+# Related math utilities
+
 def extended_euclidean_algorithm(a, b):
     """
     Returns (gcd, x, y) s.t. a * x + b * y == gcd
@@ -25,7 +28,9 @@ def inv(n, p):
     """ returns modular multiplicate inverse m s.t. (n * m) % p == 1 """
     gcd, x, y = extended_euclidean_algorithm(n, p)
     return x % p
+
 # -----------------------------------------------------------------------------
+# Core data structures to represent curves and generators
 
 @dataclass
 class Curve:
@@ -74,31 +79,30 @@ class Point:
             k >>= 1
         return result
 
+@dataclass
+class Generator:
+    """
+    A generator over a curve: an initial point and the (pre-computed) order
+    """
+    curve: Curve # an elliptic curve over finite field
+    G: Point     # a generator point on the curve
+    n: int       # the order of the generating point, so 0*G = n*G = INF
+
 INF = Point(None, None, None)
 
-def gen_bitcoin_curve():
+# -----------------------------------------------------------------------------
+# A library of curves (currently just Bitcoin's secp256k1)
+
+def bitcoin_gen():
     # Return the elliptic curve used in Bitcoin and the generator point
     # secp256k1, http://www.oid-info.com/get/1.3.132.0.10
-    _p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-    _r = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-    _b = 0x0000000000000000000000000000000000000000000000000000000000000007
-    _a = 0x0000000000000000000000000000000000000000000000000000000000000000
-    _Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
-    _Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
-    curve = Curve(_p, _a, _b)
-    G = Point(curve, _Gx, _Gy)
-    return curve, G
-
-def sk_to_pk(sk):
-    # convenience function that takes the private (secret) key
-    # and returns the public key. sk can be passed in as integer or hex string
-    if isinstance(sk, int):
-        private_key = sk
-    elif isinstance(sk, str):
-        private_key = int(sk, 16) # assume it is given as hex
-    else:
-        raise ValueError("private key sk should be an int or a hex string")
-
-    curve, G = gen_bitcoin_curve()
-    public_key = private_key * G
-    return public_key
+    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+    a = 0x0000000000000000000000000000000000000000000000000000000000000000
+    b = 0x0000000000000000000000000000000000000000000000000000000000000007
+    Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+    Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    curve = Curve(p, a, b)
+    G = Point(curve, Gx, Gy)
+    gen = Generator(curve, G, n)
+    return gen

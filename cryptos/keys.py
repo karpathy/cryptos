@@ -1,13 +1,15 @@
 """
-Function to generate a valid private key
+Utilities to generate private/public key pairs and Bitcoin address
 """
 
 import os
 import time
 
 from .sha256 import sha256
+from .curves import bitcoin_gen
 
 # -----------------------------------------------------------------------------
+# Private key generation utilities
 
 def random_bytes_os():
     """
@@ -47,10 +49,11 @@ def mastering_bitcoin_bytes():
     return bytes.fromhex(sk)
 
 
-def gen_private_key(source: str = 'os') -> int:
-
-    # order of the elliptic curve used in bitcoin
-    _r = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+def gen_private_key(n: int, source: str = 'os') -> int:
+    """
+    n is the upper bound on the key, typically the order of the elliptic curve
+    we are using. The function will return a valid key, i.e. 1 <= key < n.
+    """
 
     assert source in ['os', 'user', 'mastering'], "The source must be one of 'os' or 'user' or 'mastering'"
     bytes_fn = {
@@ -61,7 +64,24 @@ def gen_private_key(source: str = 'os') -> int:
 
     while True:
         key = int.from_bytes(bytes_fn(), 'big')
-        if 1 <= key < _r:
+        if 1 <= key < n:
             break # the key is valid, break out
 
     return key
+
+# -----------------------------------------------------------------------------
+# Public key generation
+
+def sk_to_pk(sk):
+    # convenience function that takes the private (secret) key
+    # and returns the public key. sk can be passed in as integer or hex string
+    if isinstance(sk, int):
+        private_key = sk
+    elif isinstance(sk, str):
+        private_key = int(sk, 16) # assume it is given as hex
+    else:
+        raise ValueError("private key sk should be an int or a hex string")
+
+    gen = bitcoin_gen()
+    public_key = private_key * gen.G
+    return public_key

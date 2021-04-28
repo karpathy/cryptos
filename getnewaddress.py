@@ -8,15 +8,18 @@ Specifically, the tool prints:
 
 import sys
 
-from cryptos.private_key import gen_private_key
-from cryptos.public_key import sk_to_pk
+from cryptos.curves import bitcoin_gen
+from cryptos.keys import gen_private_key, sk_to_pk
 from cryptos.btc_address import pk_to_address
 
 if __name__ == '__main__':
 
+    # select the curve we're generating for
+    gen = bitcoin_gen()
+
     # generate a private key
     source = sys.argv[1] if len(sys.argv) == 2 else 'os' # can also be 'user' | 'mastering'
-    private_key = gen_private_key(source) # represented as int
+    private_key = gen_private_key(gen.n, source) # represented as int
     print('generated private key:')
     print(hex(private_key))
 

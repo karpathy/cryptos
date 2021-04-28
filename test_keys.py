@@ -2,7 +2,7 @@
 Test the generation of private/public keypairs and bitcoin addreses
 """
 
-from cryptos.public_key import sk_to_pk
+from cryptos.keys import sk_to_pk
 from cryptos.btc_address import pk_to_address
 
 def test_public_key_gen():
