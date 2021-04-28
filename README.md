@@ -45,6 +45,23 @@ compressed bitcoin address (b58check format):
 
 Where we see that after the all crazy hashing and elliptic curve over finite fields gymnastics the bitcoin address `14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3` matches, phew :)
 
+### Digital Signatures
+
+Elliptic Curve Digital Signature Algorithm (ECDSA) implemented in `cryptos/ecdsa.py`, example usage:
+
+```python
+>>> from cryptos.ecdsa import sign, verify
+>>> from cryptos.keys import gen_key_pair
+>>> sk1, pk1 = gen_key_pair()
+>>> sk2, pk2 = gen_key_pair()
+>>> message = ('pk1 wants to pay pk2 1 BTC').encode('ascii')
+>>> sig = sign(sk1, message)
+>>> verify(pk1, message, sig)
+True
+>>> verify(pk2, message, sig)
+False
+```
+
 ### Unit tests
 
 ```bash

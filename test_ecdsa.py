@@ -3,13 +3,10 @@ Test our ability to sign and verify digital signatures
 """
 
 import os
-from cryptos.curves import bitcoin_gen
 from cryptos.keys import gen_key_pair
 from cryptos.ecdsa import Signature, sign, verify
 
 def test_ecdsa():
-
-    gen = bitcoin_gen()
 
     # let's create two identities
     sk1, pk1 = gen_key_pair('os')
