@@ -85,3 +85,12 @@ def sk_to_pk(sk):
     gen = bitcoin_gen()
     public_key = private_key * gen.G
     return public_key
+
+def gen_key_pair(source: str = 'os'):
+    """ convenience function to quickly generate a private/public keypair """
+    gen = bitcoin_gen()
+    sk = gen_private_key(gen.n, source)
+    pk = sk_to_pk(sk)
+    return sk, pk
+
+
