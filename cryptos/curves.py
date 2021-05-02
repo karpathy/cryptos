@@ -2,6 +2,7 @@
 Store of curves and generators
 """
 
+from __future__ import annotations # PEP 563: Postponed Evaluation of Annotations
 from dataclasses import dataclass
 
 # -----------------------------------------------------------------------------
@@ -49,7 +50,7 @@ class Point:
     x: int
     y: int
 
-    def __add__(self, other):
+    def __add__(self, other: Point) -> Point:
         # handle special case of P + 0 = 0 + P = 0
         if self == INF:
             return other
@@ -68,14 +69,14 @@ class Point:
         ry = (-(m*(rx - self.x) + self.y)) % self.curve.p
         return Point(self.curve, rx, ry)
 
-    def __rmul__(self, k):
+    def __rmul__(self, k: int) -> Point:
         assert isinstance(k, int) and k >= 0
         result = INF
         append = self
         while k:
-            if k&1 == 1:
-                result = result + append
-            append = append + append
+            if k & 1:
+                result += append
+            append += append
             k >>= 1
         return result
 
