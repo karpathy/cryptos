@@ -10,14 +10,17 @@ from typing import Dict, List, Tuple, Union
 # -----------------------------------------------------------------------------
 # helper functions
 
+def read_int(s, nbytes, encoding='little'):
+    return int.from_bytes(s.read(nbytes), encoding)
+
 def read_varint(s):
-    i = s.read(1)[0]
+    i = read_int(s, 1)
     if i == 0xfd:
-        return int.from_bytes(s.read(2), 'little')
+        return read_int(s, 2)
     elif i == 0xfe:
-        return int.from_bytes(s.read(4), 'little')
+        return read_int(s, 4)
     elif i == 0xff:
-        return int.from_bytes(s.read(8), 'little')
+        return read_int(s, 8)
     else:
         return i
 
@@ -35,7 +38,7 @@ class Tx:
     def parse(cls, s):
         """ s is a stream of bytes, e.g. BytesIO(b'...') """
         # parse version
-        version = int.from_bytes(s.read(4), 'little')
+        version = read_int(s, 4)
         # parse inputs + detect segwit transactions
         segwit = False
         num_inputs = read_varint(s)
@@ -64,7 +67,7 @@ class Tx:
                         items.append(s.read(item_len))
                 tx_in.witness = items
         # parse locktime
-        locktime = int.from_bytes(s.read(4), 'little')
+        locktime = read_int(s, 4)
         return cls(version, inputs, outputs, locktime, segwit)
 
 
@@ -79,9 +82,9 @@ class TxIn:
     @classmethod
     def parse(cls, s):
         prev_tx = s.read(32)[::-1] # 32 bytes little endian
-        prev_index = int.from_bytes(s.read(4), 'little')
+        prev_index = read_int(s, 4)
         script_sig = Script.parse(s)
-        sequence = int.from_bytes(s.read(4), 'little')
+        sequence = read_int(s, 4)
         return cls(prev_tx, prev_index, script_sig, sequence)
 
 
@@ -92,7 +95,7 @@ class TxOut:
 
     @classmethod
     def parse(cls, s):
-        amount = int.from_bytes(s.read(8), 'little')
+        amount = read_int(s, 8)
         script_pubkey = Script.parse(s)
         return cls(amount, script_pubkey)
 
@@ -122,12 +125,12 @@ class Script:
                 count += current
             elif current == 76:
                 # op_pushdata1: elements of size [76, 255] bytes
-                data_length = int.from_bytes(s.read(1), 'little')
+                data_length = read_int(s, 1)
                 cmds.append(s.read(data_length))
                 count += data_length + 1
             elif current == 77:
                 # op_pushdata2: elements of size [256-520] bytes
-                data_length = int.from_bytes(s.read(2), 'little')
+                data_length = read_int(s, 2)
                 cmds.append(s.read(data_length))
                 count += data_length + 2
             else:
