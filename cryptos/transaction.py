@@ -10,19 +10,34 @@ from typing import Dict, List, Tuple, Union
 # -----------------------------------------------------------------------------
 # helper functions
 
-def read_int(s, nbytes, encoding='little'):
+def decode_int(s, nbytes, encoding='little'):
     return int.from_bytes(s.read(nbytes), encoding)
 
-def read_varint(s):
-    i = read_int(s, 1)
+def encode_int(i, nbytes, encoding='little'):
+    return i.to_bytes(nbytes, encoding)
+
+def decode_varint(s):
+    i = decode_int(s, 1)
     if i == 0xfd:
-        return read_int(s, 2)
+        return decode_int(s, 2)
     elif i == 0xfe:
-        return read_int(s, 4)
+        return decode_int(s, 4)
     elif i == 0xff:
-        return read_int(s, 8)
+        return decode_int(s, 8)
     else:
         return i
+
+def encode_varint(i):
+    if i < 0xfd:
+        return bytes([i])
+    elif i < 0x10000:
+        return b'\xfd' + encode_int(i, 2)
+    elif i < 0x100000000:
+        return b'\xfe' + encode_int(i, 4)
+    elif i < 0x10000000000000000:
+        return b'\xff' + encode_int(i, 8)
+    else:
+        raise ValueError("integer too large: %d" % (i, ))
 
 # -----------------------------------------------------------------------------
 
@@ -35,40 +50,59 @@ class Tx:
     segwit: bool
 
     @classmethod
-    def parse(cls, s):
+    def decode(cls, s):
         """ s is a stream of bytes, e.g. BytesIO(b'...') """
-        # parse version
-        version = read_int(s, 4)
-        # parse inputs + detect segwit transactions
+        # decode version
+        version = decode_int(s, 4)
+        # decode inputs + detect segwit transactions
         segwit = False
-        num_inputs = read_varint(s)
+        num_inputs = decode_varint(s)
         if num_inputs == 0: # detect segwit marker b'\x00'
             assert s.read(1) == b'\x01' # assert segwit flag
-            num_inputs = read_varint(s) # override num_inputs
+            num_inputs = decode_varint(s) # override num_inputs
             segwit = True
         inputs = []
         for _ in range(num_inputs):
-            inputs.append(TxIn.parse(s))
-        # parse outputs
-        num_outputs = read_varint(s)
+            inputs.append(TxIn.decode(s))
+        # decode outputs
+        num_outputs = decode_varint(s)
         outputs = []
         for _ in range(num_outputs):
-            outputs.append(TxOut.parse(s))
-        # parse witness in the case of segwit
+            outputs.append(TxOut.decode(s))
+        # decode witness in the case of segwit
         if segwit:
             for tx_in in inputs:
-                num_items = read_varint(s)
+                num_items = decode_varint(s)
                 items = []
                 for _ in range(num_items):
-                    item_len = read_varint(s)
+                    item_len = decode_varint(s)
                     if item_len == 0:
                         items.append(0)
                     else:
                         items.append(s.read(item_len))
                 tx_in.witness = items
-        # parse locktime
-        locktime = read_int(s, 4)
+        # decode locktime
+        locktime = decode_int(s, 4)
         return cls(version, inputs, outputs, locktime, segwit)
+
+    def encode(self):
+        out = []
+        out += [encode_int(self.version, 4)]
+        out += [(b'\x00\x01' if self.segwit else b'')] # segwit marker + flag bytes
+        out += [encode_varint(len(self.tx_ins))]
+        out += [tx_in.encode() for tx_in in self.tx_ins]
+        out += [encode_varint(len(self.tx_outs))]
+        out += [tx_out.encode() for tx_out in self.tx_outs]
+        if self.segwit:
+            for tx_in in self.tx_ins:
+                out += [encode_varint(len(tx_in.witness))] # num_items
+                for item in tx_in.witness:
+                    if isinstance(item, int):
+                        out += [encode_varint(item)]
+                    else: # bytes
+                        out += [encode_varint(len(item)), item]
+        out += [encode_int(self.locktime, 4)]
+        return b''.join(out)
 
 
 @dataclass
@@ -80,12 +114,20 @@ class TxIn:
     witness: List[bytes] = None
 
     @classmethod
-    def parse(cls, s):
+    def decode(cls, s):
         prev_tx = s.read(32)[::-1] # 32 bytes little endian
-        prev_index = read_int(s, 4)
-        script_sig = Script.parse(s)
-        sequence = read_int(s, 4)
+        prev_index = decode_int(s, 4)
+        script_sig = Script.decode(s)
+        sequence = decode_int(s, 4)
         return cls(prev_tx, prev_index, script_sig, sequence)
+
+    def encode(self):
+        out = []
+        out += [self.prev_tx[::-1]]
+        out += [encode_int(self.prev_index, 4)]
+        out += [self.script_sig.encode()]
+        out += [encode_int(self.sequence, 4)]
+        return b''.join(out)
 
 
 @dataclass
@@ -94,10 +136,16 @@ class TxOut:
     script_pubkey: Script # locking script
 
     @classmethod
-    def parse(cls, s):
-        amount = read_int(s, 8)
-        script_pubkey = Script.parse(s)
+    def decode(cls, s):
+        amount = decode_int(s, 8)
+        script_pubkey = Script.decode(s)
         return cls(amount, script_pubkey)
+
+    def encode(self):
+        out = []
+        out += [encode_int(self.amount, 8)]
+        out += [self.script_pubkey.encode()]
+        return b''.join(out)
 
 
 @dataclass
@@ -111,8 +159,8 @@ class Script:
         return ' '.join(map(repr_cmd, self.cmds))
 
     @classmethod
-    def parse(cls, s):
-        length = read_varint(s)
+    def decode(cls, s):
+        length = decode_varint(s)
         cmds = []
         count = 0 # number of bytes read
         while count < length:
@@ -125,12 +173,12 @@ class Script:
                 count += current
             elif current == 76:
                 # op_pushdata1: elements of size [76, 255] bytes
-                data_length = read_int(s, 1)
+                data_length = decode_int(s, 1)
                 cmds.append(s.read(data_length))
                 count += data_length + 1
             elif current == 77:
                 # op_pushdata2: elements of size [256-520] bytes
-                data_length = read_int(s, 2)
+                data_length = decode_int(s, 2)
                 cmds.append(s.read(data_length))
                 count += data_length + 2
             else:
@@ -139,6 +187,27 @@ class Script:
         if count != length:
             raise SyntaxError('parsing script failed')
         return cls(cmds)
+
+    def encode(self):
+        out = []
+        for cmd in self.cmds:
+            if isinstance(cmd, int):
+                # an int is just an opcode, encode as a single byte
+                out += [encode_int(cmd, 1)]
+            else:
+                # bytes represent an element, encode its length and then content
+                length = len(cmd) # in bytes
+                if length < 75:
+                    out += [encode_int(length, 1)]
+                elif 76 <= length <= 255:
+                    out += [encode_int(76, 1), encode_int(length, 1)] # pushdata1
+                elif 256 <= length <= 520:
+                    out += [encode_int(77, 1), encode_int(length, 2)] # pushdata2
+                else:
+                    raise ValueError("cmd of length %d bytes is too long?" % (length, ))
+                out += [cmd]
+        ret = b''.join(out)
+        return encode_varint(len(ret)) + ret
 
 
 OP_CODE_NAMES = {
