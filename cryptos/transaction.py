@@ -7,6 +7,11 @@ from __future__ import annotations # PEP 563: Postponed Evaluation of Annotation
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
 
+import os
+import requests
+import string
+from io import BytesIO
+
 from .sha256 import sha256
 # -----------------------------------------------------------------------------
 # helper functions
@@ -41,6 +46,39 @@ def encode_varint(i):
         raise ValueError("integer too large: %d" % (i, ))
 
 # -----------------------------------------------------------------------------
+
+class TxFetcher:
+    """ lazily fetches transactions using an api on demand """
+
+    @staticmethod
+    def fetch(tx_id: str):
+        assert isinstance(tx_id, str)
+        assert all(c in string.hexdigits for c in tx_id)
+        tx_id = tx_id.lower() # normalize just in case we get caps
+        txdb_dir = 'txdb'
+        cache_file = os.path.join(txdb_dir, tx_id)
+
+        # cache transactions on disk so we're not stressing the generous API provider
+        if os.path.isfile(cache_file):
+            # fetch bytes from local disk store
+            print("reading transaction %s from disk cache" % (tx_id, ))
+            with open(cache_file, 'rb') as f:
+                raw = f.read()
+        else:
+            # fetch bytes from api
+            print("fetching transaction %s from API" % (tx_id, ))
+            url = 'https://blockstream.info/api/tx/%s/hex' % (tx_id, )
+            response = requests.get(url)
+            raw = bytes.fromhex(response.text.strip())
+            # cache on disk
+            if not os.path.isdir(txdb_dir):
+                os.makedirs(txdb_dir, exist_ok=True)
+            with open(cache_file, 'wb') as f:
+                f.write(raw)
+
+        tx = Tx.decode(BytesIO(raw))
+        return tx
+
 
 @dataclass
 class Tx:
@@ -86,7 +124,7 @@ class Tx:
         locktime = decode_int(s, 4)
         return cls(version, inputs, outputs, locktime, segwit)
 
-    def encode(self, force_legacy=False):
+    def encode(self, force_legacy=False) -> bytes:
         out = []
         out += [encode_int(self.version, 4)]
         if self.segwit and not force_legacy:
@@ -106,8 +144,13 @@ class Tx:
         out += [encode_int(self.locktime, 4)]
         return b''.join(out)
 
-    def id(self):
+    def id(self) -> str:
         return sha256(sha256(self.encode(force_legacy=True)))[::-1].hex()
+
+    def fee(self) -> int:
+        input_total = sum(tx_in.value() for tx_in in self.tx_ins)
+        output_total = sum(tx_out.amount for tx_out in self.tx_outs)
+        return input_total - output_total
 
 
 @dataclass
@@ -133,6 +176,11 @@ class TxIn:
         out += [self.script_sig.encode()]
         out += [encode_int(self.sequence, 4)]
         return b''.join(out)
+
+    def value(self):
+        tx = TxFetcher.fetch(self.prev_tx.hex())
+        amount = tx.tx_outs[self.prev_index].amount
+        return amount
 
 
 @dataclass

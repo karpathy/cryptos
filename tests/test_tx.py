@@ -28,6 +28,8 @@ def test_legacy_decode():
     assert tx.locktime == 410393
     # id calculation
     assert tx.id() == '452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03'
+    # fee calculation
+    assert tx.fee() == 40000
 
     # check correct decoding/encoding
     raw2 = tx.encode()
@@ -53,6 +55,7 @@ def test_segwit_decode():
     assert tx.tx_outs[2].amount == 6033748
     # id calculation
     assert tx.id() == '3ecf9b3d965cfaa2c472f09b5f487fbd838e4e1f861e3542c541d39c5cb7bc25'
+    assert tx.fee() == 31922
 
     # check correct decoding/encoding
     raw2 = tx.encode()
