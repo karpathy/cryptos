@@ -7,6 +7,7 @@ from __future__ import annotations # PEP 563: Postponed Evaluation of Annotation
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
 
+from .sha256 import sha256
 # -----------------------------------------------------------------------------
 # helper functions
 
@@ -85,15 +86,16 @@ class Tx:
         locktime = decode_int(s, 4)
         return cls(version, inputs, outputs, locktime, segwit)
 
-    def encode(self):
+    def encode(self, force_legacy=False):
         out = []
         out += [encode_int(self.version, 4)]
-        out += [(b'\x00\x01' if self.segwit else b'')] # segwit marker + flag bytes
+        if self.segwit and not force_legacy:
+            out += [b'\x00\x01'] # segwit marker + flag bytes
         out += [encode_varint(len(self.tx_ins))]
         out += [tx_in.encode() for tx_in in self.tx_ins]
         out += [encode_varint(len(self.tx_outs))]
         out += [tx_out.encode() for tx_out in self.tx_outs]
-        if self.segwit:
+        if self.segwit and not force_legacy:
             for tx_in in self.tx_ins:
                 out += [encode_varint(len(tx_in.witness))] # num_items
                 for item in tx_in.witness:
@@ -103,6 +105,9 @@ class Tx:
                         out += [encode_varint(len(item)), item]
         out += [encode_int(self.locktime, 4)]
         return b''.join(out)
+
+    def id(self):
+        return sha256(sha256(self.encode(force_legacy=True)))[::-1].hex()
 
 
 @dataclass
