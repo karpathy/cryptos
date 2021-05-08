@@ -6,7 +6,7 @@ import os
 import time
 
 from .sha256 import sha256
-from .curves import bitcoin_gen
+from .curves import bitcoin_gen, Point
 
 # -----------------------------------------------------------------------------
 # Private key generation utilities
@@ -85,6 +85,39 @@ def sk_to_pk(sk):
     gen = bitcoin_gen()
     public_key = private_key * gen.G
     return public_key
+
+def pk_from_sec(b: bytes) -> Point:
+    """ return the public key as a Point from SEC binary format """
+    assert isinstance(b, bytes)
+    gen = bitcoin_gen()
+
+    # the uncompressed version is straight forward
+    if b[0] == 4:
+        x = int.from_bytes(b[1:33], 'big')
+        y = int.from_bytes(b[33:65], 'big')
+        return Point(gen.G.curve, x, y)
+
+    # for compressed version uncompress the full public key Point
+    # first recover the y-evenness and the full x
+    assert b[0] in [2, 3]
+    is_even = b[0] == 2
+    x = int.from_bytes(b[1:], 'big')
+
+    # solve y^2 = x^3 + 7 for y, but mod p
+    p = gen.G.curve.p
+    y2 = (pow(x, 3, p) + 7) % p
+    y = pow(y2, (p + 1) // 4, p)
+    y = y if ((y % 2 == 0) == is_even) else p - y # flip if needed to make the evenness agree
+    return Point(gen.G.curve, x, y)
+
+def pk_to_sec(pk: Point, compressed=True) -> bytes:
+    """ return the SEC bytes encoding of the public key Point """
+    assert isinstance(pk, Point)
+    if compressed:
+        prefix = b'\x02' if pk.y % 2 == 0 else b'\x03'
+        return prefix + pk.x.to_bytes(32, 'big')
+    else:
+        return b'\x04' + pk.x.to_bytes(32, 'big') + pk.y.to_bytes(32, 'big')
 
 def gen_key_pair(source: str = 'os'):
     """ convenience function to quickly generate a private/public keypair """
