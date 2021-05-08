@@ -4,6 +4,7 @@ Functions that sign/verify digital signatures and related utilities
 """
 
 from dataclasses import dataclass
+from io import BytesIO
 
 from .sha256 import sha256
 from cryptos.curves import bitcoin_gen, inv, Point
@@ -57,3 +58,36 @@ def verify(public_key: Point, message: bytes, sig: Signature) -> bool:
     match = P.x == sig.r
 
     return match
+
+def sig_from_der(der: bytes):
+    """
+    DER has the following format:
+    0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash-type]
+
+    total-length: 1-byte length descriptor of everything that follows, excluding the sighash byte.
+    R-length: 1-byte length descriptor of the R value that follows.
+    R: arbitrary-length big-endian encoded R value. It cannot start with any 0x00 bytes, unless the first byte that follows is 0x80 or higher, in which case a single 0x00 is required.
+    S-length: 1-byte length descriptor of the S value that follows.
+    S: arbitrary-length big-endian encoded S value. The same rules apply as for R.
+    sighash-type: 1-byte hashtype flag (only 0x01, 0x02, 0x03, 0x81, 0x82 and 0x83 are allowed).
+
+    https://en.bitcoin.it/wiki/BIP_0062#DER_encoding
+
+    For some reason in the programming bitcoin version the sighash-type is absent (?)
+    """
+    s = BytesIO(der)
+    assert s.read(1)[0] == 0x30
+    # read and validate the total length of the encoding
+    length = s.read(1)[0]
+    assert length + 2 == len(der) # +2 to include the starting 0x30 and the sighash byte... ¯\_(ツ)_/¯
+    assert s.read(1)[0] == 0x02
+    # read r
+    rlength = s.read(1)[0]
+    rval = int.from_bytes(s.read(rlength), 'big')
+    assert s.read(1)[0] == 0x02
+    # read s
+    slength = s.read(1)[0]
+    sval = int.from_bytes(s.read(slength), 'big')
+    # validate total length and return
+    assert len(der) == 6 + rlength + slength
+    return Signature(rval, sval)
