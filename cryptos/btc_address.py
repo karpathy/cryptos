@@ -35,17 +35,22 @@ def b58decode(res: str) -> bytes:
 
 # -----------------------------------------------------------------------------
 
-def pk_to_address_bytes(public_key) -> bytes:
+def pk_to_address_bytes(public_key, net, compressed) -> bytes:
+    """ public_key is a Point, net is 'main'|'test' """
 
-    # generate the compressed public key
-    prefix = b'\x02' if public_key.y % 2 == 0 else b'\x03'
-    pkb = prefix + public_key.x.to_bytes(32, 'big')
+    # convert the public key to SEC format
+    if compressed:
+        prefix = b'\x02' if public_key.y % 2 == 0 else b'\x03'
+        pkb = prefix + public_key.x.to_bytes(32, 'big')
+    else:
+        pkb = b'\x04' + public_key.x.to_bytes(32, 'big') + public_key.y.to_bytes(32, 'big')
 
     # double hash to get the payload
     pkb_hash = ripemd160(sha256(pkb))
 
-    # add version byte (0x00 for Main Network)
-    ver_pkb_hash = b'\x00' + pkb_hash
+    # add version byte (0x00 for Main Network, or 0x6f for Test Network)
+    version = {'main': b'\x00', 'test': b'\x6f'}
+    ver_pkb_hash = version[net] + pkb_hash
 
     # calculate the checksum
     checksum = sha256(sha256(ver_pkb_hash))[:4]
@@ -55,8 +60,8 @@ def pk_to_address_bytes(public_key) -> bytes:
 
     return byte_address
 
-def pk_to_address(public_key) -> str:
-    byte_address = pk_to_address_bytes(public_key)
+def pk_to_address(public_key, net, compressed) -> str:
+    byte_address = pk_to_address_bytes(public_key, net, compressed)
     b58check_address = b58encode(byte_address)
     return b58check_address
 
