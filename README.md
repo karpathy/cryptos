@@ -1,7 +1,7 @@
 
 # cryptos
 
-Just me developing a pure Python from-scratch zero-dependency implementation of Bitcoin for educational purposes. This includes a lot of the core crypto math primitives such as SHA-256 and elliptic curves over finite fields math (but with the exception of RIPEMD160 hash function, which I imported).
+Just me developing a pure Python from-scratch zero-dependency implementation of Bitcoin for educational purposes, including all of the under the hood crypto primitives such as SHA-256 and elliptic curves over finite fields math.
 
 ### SHA-256
 
@@ -85,6 +85,8 @@ And we can verify that the transaction is Bitcoin law-abiding and cryptographica
 >>> tx.validate()
 True
 ```
+
+This isn't exactly a complete verification as a Bitcoin full node would do and e.g. skips verification of double spends, script sizing limits, etc., and also it only supports the (simpler) p2pkh transactions. Notably, this does not include the "modern" segwit versions used predominantly in today's Bitcoin traffic since the soft fork of BIP141 around July 2017.
 
 ### Unit tests
 
