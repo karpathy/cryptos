@@ -35,6 +35,25 @@ def test_legacy_decode():
     raw2 = tx.encode()
     assert raw == raw2
 
+    # validate the transaction as Bitcoin law-abiding and cryptographically authentic
+    assert tx.validate()
+
+    # fudge the r in the (r,s) digital signature tuple, this should break validation because CEHCKSIG will fail
+    sigb = tx.tx_ins[0].script_sig.cmds[0]
+    sigb2 = sigb[:6] + bytes([(sigb[6] + 1) % 255]) + sigb[7:]
+    tx.tx_ins[0].script_sig.cmds[0] = sigb2
+    assert not tx.validate()
+    tx.tx_ins[0].script_sig.cmds[0] = sigb # revert to original
+    assert tx.validate()
+
+    # fudge the public key, should again break validation because pk hash won't match
+    pkb = tx.tx_ins[0].script_sig.cmds[1]
+    pkb2 = pkb[:6] + bytes([(pkb[6] + 1) % 255]) + pkb[7:]
+    tx.tx_ins[0].script_sig.cmds[1] = pkb2
+    assert not tx.validate()
+    tx.tx_ins[0].script_sig.cmds[1] = pkb # revert to original
+    assert tx.validate()
+
 def test_segwit_decode():
 
     # I snatched this transaction at random from the stream of transactions

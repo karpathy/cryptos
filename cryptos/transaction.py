@@ -13,6 +13,10 @@ import string
 from io import BytesIO
 
 from .sha256 import sha256
+from .ripemd160 import ripemd160
+from .ecdsa import verify, Signature
+from .keys import pk_from_sec
+
 # -----------------------------------------------------------------------------
 # helper functions
 
@@ -61,12 +65,12 @@ class TxFetcher:
         # cache transactions on disk so we're not stressing the generous API provider
         if os.path.isfile(cache_file):
             # fetch bytes from local disk store
-            print("reading transaction %s from disk cache" % (tx_id, ))
+            # print("reading transaction %s from disk cache" % (tx_id, ))
             with open(cache_file, 'rb') as f:
                 raw = f.read()
         else:
             # fetch bytes from api
-            print("fetching transaction %s from API" % (tx_id, ))
+            # print("fetching transaction %s from API" % (tx_id, ))
             url = 'https://blockstream.info/api/tx/%s/hex' % (tx_id, )
             response = requests.get(url)
             raw = bytes.fromhex(response.text.strip())
@@ -124,15 +128,30 @@ class Tx:
         locktime = decode_int(s, 4)
         return cls(version, inputs, outputs, locktime, segwit)
 
-    def encode(self, force_legacy=False) -> bytes:
+    def encode(self, force_legacy=False, sig_index=-1) -> bytes:
+        """
+        encode this transaction as bytes.
+        If sig_index is given then return the modified transaction
+        encoding of this tx with respect to the single input index.
+        This result then constitutes the "message" that gets signed
+        by the aspiring transactor of this input.
+        """
         out = []
+        # encode metadata
         out += [encode_int(self.version, 4)]
         if self.segwit and not force_legacy:
             out += [b'\x00\x01'] # segwit marker + flag bytes
+        # encode inputs
         out += [encode_varint(len(self.tx_ins))]
-        out += [tx_in.encode() for tx_in in self.tx_ins]
+        if sig_index == -1:
+            out += [tx_in.encode() for tx_in in self.tx_ins]
+        else:
+            out += [tx_in.encode(script_override=(sig_index == i))
+                    for i, tx_in in enumerate(self.tx_ins)]
+        # encode outputs
         out += [encode_varint(len(self.tx_outs))]
         out += [tx_out.encode() for tx_out in self.tx_outs]
+        # encode witnesses
         if self.segwit and not force_legacy:
             for tx_in in self.tx_ins:
                 out += [encode_varint(len(tx_in.witness))] # num_items
@@ -141,7 +160,9 @@ class Tx:
                         out += [encode_varint(item)]
                     else: # bytes
                         out += [encode_varint(len(item)), item]
+        # encode... other metadata I guess
         out += [encode_int(self.locktime, 4)]
+        out += [encode_int(1, 4) if sig_index != -1 else b''] # 1 = SIGHASH_ALL
         return b''.join(out)
 
     def id(self) -> str:
@@ -151,6 +172,29 @@ class Tx:
         input_total = sum(tx_in.value() for tx_in in self.tx_ins)
         output_total = sum(tx_out.amount for tx_out in self.tx_outs)
         return input_total - output_total
+
+    def validate(self):
+        assert not self.segwit # todo for segwits
+
+        # validate that this transaction is not minting coins
+        if self.fee() < 0:
+            return False
+
+        # validate the digital signatures of all inputs
+        for i, tx in enumerate(self.tx_ins):
+            """
+            note: here we should be decoding the sighash-type, which is the
+            last byte appended on top of the DER signature in the script_sig,
+            and encoding the signing bytes accordingly. For now we assume the
+            most common type of signature, which is 1 = SIGHASH_ALL
+            """
+            mod_tx_enc = self.encode(sig_index=i)
+            combined = tx.script_sig + tx.script_pubkey() # Script addition
+            valid = combined.evaluate(mod_tx_enc)
+            if not valid:
+                return False
+
+        return True
 
 
 @dataclass
@@ -169,18 +213,38 @@ class TxIn:
         sequence = decode_int(s, 4)
         return cls(prev_tx, prev_index, script_sig, sequence)
 
-    def encode(self):
+    def encode(self, script_override=None):
         out = []
         out += [self.prev_tx[::-1]]
         out += [encode_int(self.prev_index, 4)]
-        out += [self.script_sig.encode()]
+
+        if script_override is None:
+            # None = just use the actual script
+            out += [self.script_sig.encode()]
+        elif script_override is True:
+            # True = override the script with the script_pubkey of the associated input
+            tx = TxFetcher.fetch(self.prev_tx.hex())
+            out += [tx.tx_outs[self.prev_index].script_pubkey.encode()]
+        elif script_override is False:
+            # False = override with an empty script
+            out += [Script()]
+        else:
+            raise ValueError("script_override must be one of None|True|False")
+
         out += [encode_int(self.sequence, 4)]
         return b''.join(out)
 
     def value(self):
+        # look the amount up on the previous transaction
         tx = TxFetcher.fetch(self.prev_tx.hex())
         amount = tx.tx_outs[self.prev_index].amount
         return amount
+
+    def script_pubkey(self):
+        # look the script_pubkey up on the previous transaction
+        tx = TxFetcher.fetch(self.prev_tx.hex())
+        script = tx.tx_outs[self.prev_index].script_pubkey
+        return script
 
 
 @dataclass
@@ -261,6 +325,37 @@ class Script:
                 out += [cmd]
         ret = b''.join(out)
         return encode_varint(len(ret)) + ret
+
+    def evaluate(self, mod_tx_enc):
+
+        # for now let's just support a standard p2pkh transaction
+        assert len(self.cmds) == 7
+        assert isinstance(self.cmds[0], bytes) # signature
+        assert isinstance(self.cmds[1], bytes) # pubkey
+        assert isinstance(self.cmds[2], int) and (OP_CODE_NAMES[self.cmds[2]] == 'OP_DUP')
+        assert isinstance(self.cmds[3], int) and (OP_CODE_NAMES[self.cmds[3]] == 'OP_HASH160')
+        assert isinstance(self.cmds[4], bytes) # hash
+        assert isinstance(self.cmds[5], int) and (OP_CODE_NAMES[self.cmds[5]] == 'OP_EQUALVERIFY')
+        assert isinstance(self.cmds[6], int) and (OP_CODE_NAMES[self.cmds[6]] == 'OP_CHECKSIG')
+
+        # verify the public key hash, answering the OP_EQUALVERIFY challenge
+        pubkey, pubkey_hash = self.cmds[1], self.cmds[4]
+        if pubkey_hash != ripemd160(sha256(pubkey)):
+            return False
+
+        # verify the digital signature of the transaction, answering the OP_CHECKSIG challenge
+        sighash_type = self.cmds[0][-1] # the last byte is the sighash type
+        assert sighash_type == 1 # 1 is SIGHASH_ALL, most commonly used and only one supported right now
+        der = self.cmds[0][:-1] # DER encoded signature, but crop out the last byte
+        sec = self.cmds[1] # SEC encoded public key
+        sig = Signature.from_der(der)
+        pk = pk_from_sec(sec)
+        valid = verify(pk, mod_tx_enc, sig)
+
+        return valid
+
+    def __add__(self, other):
+        return Script(self.cmds + other.cmds)
 
 
 OP_CODE_NAMES = {

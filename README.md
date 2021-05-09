@@ -79,6 +79,13 @@ Bitcoin transaction objects (both legacy or segwit) can be instantiated and pars
 Tx(version=1, tx_ins=[TxIn(prev_tx=b'\xd1\xc7\x89\xa9\xc6\x03\x83\xbfq_?j\xd9\xd1K\x91\xfeU\xf3\xde\xb3i\xfe]\x92\x80\xcb\x1a\x01y?\x81', prev_index=0, script_sig=3045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01 0349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278a, sequence=4294967294, witness=None)], tx_outs=[TxOut(amount=32454049, script_pubkey=OP_DUP OP_HASH160 bc3b654dca7e56b04dca18f2566cdaf02e8d9ada OP_EQUALVERIFY OP_CHECKSIG), TxOut(amount=10011545, script_pubkey=OP_DUP OP_HASH160 1c4bc762dd5423e332166702cb75f40df79fea12 OP_EQUALVERIFY OP_CHECKSIG)], locktime=410393, segwit=False)
 ```
 
+And we can verify that the transaction is Bitcoin law-abiding and cryptographically authentic:
+
+```python
+>>> tx.validate()
+True
+```
+
 ### Unit tests
 
 ```bash

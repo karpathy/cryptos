@@ -57,7 +57,7 @@ def sign(private_key: int, message: bytes) -> Signature:
 
     # hash the message and convert to integer
     # TODO: do we want to do this here? or outside? probably not here
-    z = int.from_bytes(sha256(message), 'big')
+    z = int.from_bytes(sha256(sha256(message)), 'big')
 
     # generate a new private/public key pair at random
     # TODO: make deterministic
@@ -82,7 +82,7 @@ def verify(public_key: Point, message: bytes, sig: Signature) -> bool:
     assert isinstance(sig.s, int) and 1 <= sig.s < n
 
     # hash the message and convert to integer
-    z = int.from_bytes(sha256(message), 'big')
+    z = int.from_bytes(sha256(sha256(message)), 'big')
 
     # verify signature
     w = inv(sig.s, n)
