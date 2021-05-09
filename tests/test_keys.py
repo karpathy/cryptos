@@ -3,7 +3,7 @@ Test the generation of private/public keypairs and bitcoin addreses
 """
 
 from cryptos.keys import sk_to_pk, pk_to_sec, pk_from_sec
-from cryptos.btc_address import pk_to_address
+from cryptos.btc_address import pk_to_address, pk_to_address_bytes, address_to_pkb_hash
 from cryptos.curves import bitcoin_gen
 
 def test_public_key_gen():
@@ -25,12 +25,25 @@ def test_btc_addresses():
         # Bitcoin wiki page reference
         # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses#How_to_create_Bitcoin_Address
         ('18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725', '1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs'),
+        # Programming Bitcoin Chapter 4 Exercise 5
+        (0x12345deadbeef, '1F1Pn2y6pDb68E5nYJJeba4TLg2U7B6KF1')
     ]
 
+    # test address encoding into b58check
     for private_key, expected_address in tests:
         pk = sk_to_pk(private_key)
         addr = pk_to_address(pk)
         assert addr == expected_address
+
+    # test public key hash decoding from b58check
+    for private_key, address in tests:
+        pk = sk_to_pk(private_key)
+        # get the hash160 by stripping version byte and checksum
+        pkb_hash = pk_to_address_bytes(pk)[1:-4] # 20 byte public key hash
+        # now extract from the address
+        pkb_hash2 = address_to_pkb_hash(address)
+        assert pkb_hash == pkb_hash2
+
 
 def test_pk_sec():
 
