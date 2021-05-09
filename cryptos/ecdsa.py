@@ -50,6 +50,21 @@ class Signature:
         assert len(der) == 6 + rlength + slength # 6 is the sum of misc / metadata bytes in the DER signature
         return cls(rval, sval)
 
+    def encode(self) -> bytes:
+        """ return the DER encoding of this signature """
+
+        def dern(n):
+            nb = n.to_bytes(32, byteorder='big')
+            nb = nb.lstrip(b'\x00') # strip leading zeros
+            nb = (b'\x00' if nb[0] >= 80 else b'') + nb # preprend 0x00 if first byte >= 0x80
+            return nb
+
+        rb = dern(self.r)
+        sb = dern(self.s)
+        content = b''.join([bytes([0x02, len(rb)]), rb, bytes([0x02, len(sb)]), sb])
+        frame = b''.join([bytes([0x30, len(content)]), content])
+        return frame
+
 def sign(private_key: int, message: bytes) -> Signature:
 
     gen = bitcoin_gen()
