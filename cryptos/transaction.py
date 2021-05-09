@@ -55,7 +55,7 @@ class TxFetcher:
     """ lazily fetches transactions using an api on demand """
 
     @staticmethod
-    def fetch(tx_id: str):
+    def fetch(tx_id: str, net: str):
         assert isinstance(tx_id, str)
         assert all(c in string.hexdigits for c in tx_id)
         tx_id = tx_id.lower() # normalize just in case we get caps
@@ -71,8 +71,15 @@ class TxFetcher:
         else:
             # fetch bytes from api
             # print("fetching transaction %s from API" % (tx_id, ))
-            url = 'https://blockstream.info/api/tx/%s/hex' % (tx_id, )
+            assert net is not None, "can't fetch a transaction without knowing which net to look at, e.g. main|test"
+            if net == 'main':
+                url = 'https://blockstream.info/api/tx/%s/hex' % (tx_id, )
+            elif net == 'test':
+                url = 'https://blockstream.info/testnet/api/tx/%s/hex' % (tx_id, )
+            else:
+                raise ValueError("%s is not a valid net type, should be main|test" % (net, ))
             response = requests.get(url)
+            assert response.status_code == 200, "transaction id %s was not found on blockstream" % (tx_id, )
             raw = bytes.fromhex(response.text.strip())
             # cache on disk
             if not os.path.isdir(txdb_dir):
@@ -81,6 +88,7 @@ class TxFetcher:
                 f.write(raw)
 
         tx = Tx.decode(BytesIO(raw))
+        assert tx.id() == tx_id # ensure that the calculated id matches the request id
         return tx
 
 
@@ -89,8 +97,8 @@ class Tx:
     version: int
     tx_ins: List[TxIn]
     tx_outs: List[TxOut]
-    locktime: int
-    segwit: bool
+    locktime: int = 0
+    segwit: bool = False
 
     @classmethod
     def decode(cls, s):
@@ -201,9 +209,10 @@ class Tx:
 class TxIn:
     prev_tx: bytes # prev transaction ID: hash256 of prev tx contents
     prev_index: int # UTXO output index in the transaction
-    script_sig: Script # unlocking script
-    sequence: int # originally intended for "high frequency trades", with locktime
+    script_sig: Script = None # unlocking script
+    sequence: int = 0xffffffff # originally intended for "high frequency trades", with locktime
     witness: List[bytes] = None
+    net: str = None # which net are we on? eg 'main'|'test'
 
     @classmethod
     def decode(cls, s):
@@ -223,7 +232,7 @@ class TxIn:
             out += [self.script_sig.encode()]
         elif script_override is True:
             # True = override the script with the script_pubkey of the associated input
-            tx = TxFetcher.fetch(self.prev_tx.hex())
+            tx = TxFetcher.fetch(self.prev_tx.hex(), net=self.net)
             out += [tx.tx_outs[self.prev_index].script_pubkey.encode()]
         elif script_override is False:
             # False = override with an empty script
@@ -236,13 +245,13 @@ class TxIn:
 
     def value(self):
         # look the amount up on the previous transaction
-        tx = TxFetcher.fetch(self.prev_tx.hex())
+        tx = TxFetcher.fetch(self.prev_tx.hex(), net=self.net)
         amount = tx.tx_outs[self.prev_index].amount
         return amount
 
     def script_pubkey(self):
         # look the script_pubkey up on the previous transaction
-        tx = TxFetcher.fetch(self.prev_tx.hex())
+        tx = TxFetcher.fetch(self.prev_tx.hex(), net=self.net)
         script = tx.tx_outs[self.prev_index].script_pubkey
         return script
 

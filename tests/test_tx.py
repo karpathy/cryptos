@@ -2,8 +2,12 @@
 Test Transaction
 """
 
-from cryptos.transaction import Tx
 from io import BytesIO
+
+from cryptos.transaction import Tx, TxIn, TxOut, Script
+from cryptos.btc_address import address_to_pkb_hash
+from cryptos.keys import sk_to_pk, pk_to_sec
+from cryptos.ecdsa import sign
 
 def test_legacy_decode():
 
@@ -38,7 +42,7 @@ def test_legacy_decode():
     # validate the transaction as Bitcoin law-abiding and cryptographically authentic
     assert tx.validate()
 
-    # fudge the r in the (r,s) digital signature tuple, this should break validation because CEHCKSIG will fail
+    # fudge the r in the (r,s) digital signature tuple, this should break validation because CHECKSIG will fail
     sigb = tx.tx_ins[0].script_sig.cmds[0]
     sigb2 = sigb[:6] + bytes([(sigb[6] + 1) % 255]) + sigb[7:]
     tx.tx_ins[0].script_sig.cmds[0] = sigb2
@@ -79,3 +83,56 @@ def test_segwit_decode():
     # check correct decoding/encoding
     raw2 = tx.encode()
     assert raw == raw2
+
+def test_create_tx():
+    # this example follows Programming Bitcoin Chapter 7
+
+    # define the inputs of our aspiring transaction
+    prev_tx = bytes.fromhex('0d6fe5213c0b3291f208cba8bfb59b7476dffacc4e5cb66f6eb20a080843a299')
+    prev_index = 13
+    tx_in = TxIn(prev_tx, prev_index, net='test')
+
+    # change output that goes back to us
+    amount = int(0.33 * 1e8) # 0.33 tBTC in units of satoshi
+    pkb_hash = address_to_pkb_hash('mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2')
+    script = Script([118, 169, pkb_hash, 136, 172]) # OP_DUP, OP_HASH160, <hash>, OP_EQUALVERIFY, OP_CHECKSIG
+    tx_out_change = TxOut(amount=amount, script_pubkey=script)
+
+    # target output that goes to a lucky recepient
+    amount = int(0.1 * 1e8) # 0.1 tBTC in units of satoshi
+    pkb_hash = address_to_pkb_hash('mnrVtF8DWjMu839VW3rBfgYaAfKk8983Xf')
+    script = Script([118, 169, pkb_hash, 136, 172]) # OP_DUP, OP_HASH160, <hash>, OP_EQUALVERIFY, OP_CHECKSIG
+    tx_out_target = TxOut(amount=amount, script_pubkey=script)
+
+    # create the desired transaction object
+    tx = Tx(1, [tx_in], [tx_out_change, tx_out_target])
+
+    # validate the intended fee of 0.01 tBTC
+    assert tx.fee() == int(0.01 * 1e8)
+
+    # produce the unlocking script for this p2pkh tx: [<signature>, <pubkey>]
+
+    # first produce the <pubkey> that will satisfy OP_EQUALVERIFY on the locking script
+    sk = 8675309 # the secret key that produced the public key that produced the hash that is on that input tx's locking script
+    pk = sk_to_pk(sk)
+    sec = pk_to_sec(pk, compressed=True) # sec encoded public key as bytes
+    # okay but anyone with the knowledge of the public key could have done this part if this public
+    # key was previously used (and hence revealed) somewhere on the blockchain
+
+    # now produce the digital signature that will satisfy the OP_CHECKSIG on the locking script
+    enc = tx.encode(sig_index=0)
+    sig = sign(sk, enc) # only and uniquely the person with the secret key can do this
+    der = sig.encode()
+    der_and_type = der + b'\x01' # 1 = SIGHASH_ALL, indicating this der signature encoded "ALL" of the tx
+
+    # set the unlocking script into the transaction
+    tx_in.script_sig = Script([der_and_type, sec])
+
+    # final check: ensure that our manually constructed transaction is all valid and ready to send out to the wild
+    assert tx.validate()
+
+    # peace of mind: fudge the signature and try again
+    der = der[:6] + bytes([(der[6] + 1) % 255]) + der[7:]
+    der_and_type = der + b'\x01'
+    tx_in.script_sig = Script([der_and_type, sec])
+    assert not tx.validate()
