@@ -236,7 +236,7 @@ class TxIn:
             out += [tx.tx_outs[self.prev_index].script_pubkey.encode()]
         elif script_override is False:
             # False = override with an empty script
-            out += [Script()]
+            out += [Script([]).encode()]
         else:
             raise ValueError("script_override must be one of None|True|False")
 
