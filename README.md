@@ -17,7 +17,7 @@ $ python -m cryptos.sha256 testfile.txt
 
 ### Keys
 
-`getnewaddress.py` is a cli entryway to the code that generates a new Bitcoin secret/public key pair and the corresponding (base58 compressed) address:
+`getnewaddress.py` is a cli entryway to generate a new Bitcoin secret/public key pair and the corresponding (base58check compressed) address:
 
 ```bash
 $ python getnewaddress.py
@@ -29,21 +29,6 @@ y: 6049637B3683076C5568EC723CF7D38FD603B88447180829BBB508C554EEA413
 compressed bitcoin address (b58check format):
 1DBGfUXnwTS2PRu8h3JefU9uYwYnyaTd2z
 ```
-
-You can also generate your own entropy from keyboard timings if you call the cli as `$ python getnewaddress.py user`, or you can verify that the implementation is not broken by reproducing the [Mastering Bitcoin Chapter 4](https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04.asciidoc) example:
-
-```bash
-$ python getnewaddress.py mastering
-generated secret key:
-0x3aba4162c7251c891207b747840551a71939b0de081f85c4e44cf7c13e41daa6
-corresponding public key:
-x: 5C0DE3B9C8AB18DD04E3511243EC2952002DBFADC864B9628910169D9B9B00EC
-y: 243BCEFDD4347074D44BD7356D6A53C495737DD96295E2A9374BF5F02EBFC176
-compressed bitcoin address (b58check format):
-14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3
-```
-
-Where we see that after the all crazy hashing and elliptic curve over finite fields gymnastics the bitcoin address `14cxpo3MBCYYWCgF74SWTdcmxipnGUsPw3` matches, phew :).
 
 ### Digital Signatures
 

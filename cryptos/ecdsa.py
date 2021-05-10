@@ -77,7 +77,7 @@ def sign(secret_key: int, message: bytes) -> Signature:
     # generate a new secret/public key pair at random
     # TODO: make deterministic
     # TODO: make take constant time to mitigate timing attacks
-    k = gen_secret_key(n, 'os')
+    k = gen_secret_key(n)
     P = PublicKey.from_sk(k)
 
     # calculate the signature
