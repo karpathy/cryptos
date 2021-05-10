@@ -1,9 +1,16 @@
 """
-Store of curves and generators
+Core functions for math over Elliptic Curves over Finite Fields,
+especially the ability to define Points on Curves and perform
+addition and scalar multiplication.
 """
 
 from __future__ import annotations # PEP 563: Postponed Evaluation of Annotations
 from dataclasses import dataclass
+
+# -----------------------------------------------------------------------------
+# public API
+
+__all__ = ['Curve', 'Point', 'Generator']
 
 # -----------------------------------------------------------------------------
 # Related math utilities
@@ -89,20 +96,3 @@ class Generator:
     n: int       # the order of the generating point, so 0*G = n*G = INF
 
 INF = Point(None, None, None)
-
-# -----------------------------------------------------------------------------
-# A library of curves (currently just Bitcoin's secp256k1)
-
-def bitcoin_gen():
-    # Return the elliptic curve used in Bitcoin and the generator point
-    # secp256k1, http://www.oid-info.com/get/1.3.132.0.10
-    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-    a = 0x0000000000000000000000000000000000000000000000000000000000000000
-    b = 0x0000000000000000000000000000000000000000000000000000000000000007
-    Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
-    Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
-    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-    curve = Curve(p, a, b)
-    G = Point(curve, Gx, Gy)
-    gen = Generator(G, n)
-    return gen
