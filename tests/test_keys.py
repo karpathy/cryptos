@@ -1,8 +1,8 @@
 """
-Test the generation of private/public keypairs and bitcoin addreses
+Test the generation of secret/public keypairs and bitcoin addreses
 """
 
-from cryptos.keys import sk_to_pk, pk_to_sec, pk_from_sec
+from cryptos.keys import PublicKey
 from cryptos.btc_address import pk_to_address, pk_to_address_bytes, address_to_pkb_hash
 from cryptos.bitcoin import BITCOIN
 
@@ -10,14 +10,14 @@ def test_public_key_gen():
 
     # Example taken from Chapter 4 of Mastering Bitcoin
     # https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04.asciidoc
-    public_key = sk_to_pk('1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD')
+    public_key = PublicKey.from_sk('1E99423A4ED27608A15A2616A2B0E9E52CED330AC530EDCC32C8FFC6A526AEDD')
     assert format(public_key.x, '064x').upper() == 'F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A'
     assert format(public_key.y, '064x').upper() == '07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB'
 
 
 def test_btc_addresses():
 
-    # tuples of (net, compressed, private key in hex, expected compressed bitcoin address string in b58check)
+    # tuples of (net, compressed, secret key in hex, expected compressed bitcoin address string in b58check)
     tests = [
         # Mastering Bitcoin Chapter 4 example
         # https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch04.asciidoc
@@ -32,14 +32,14 @@ def test_btc_addresses():
     ]
 
     # test address encoding into b58check
-    for net, compressed, private_key, expected_address in tests:
-        pk = sk_to_pk(private_key)
+    for net, compressed, secret_key, expected_address in tests:
+        pk = PublicKey.from_sk(secret_key)
         addr = pk_to_address(pk, net, compressed)
         assert addr == expected_address
 
     # test public key hash decoding from b58check
-    for net, compressed, private_key, address in tests:
-        pk = sk_to_pk(private_key)
+    for net, compressed, secret_key, address in tests:
+        pk = PublicKey.from_sk(secret_key)
         # get the hash160 by stripping version byte and checksum
         pkb_hash = pk_to_address_bytes(pk, net, compressed)[1:-4] # 20 byte public key hash
         # now extract from the address
@@ -63,8 +63,8 @@ def test_pk_sec():
 
     for P, compressed, sec_gt in tests:
         # encode
-        sec = pk_to_sec(P, compressed=compressed).hex()
+        sec = PublicKey.from_point(P).encode(compressed=compressed).hex()
         assert sec == sec_gt
         # decode
-        P2 = pk_from_sec(bytes.fromhex(sec))
+        P2 = PublicKey.decode(bytes.fromhex(sec))
         assert P.x == P2.x and P.y == P2.y

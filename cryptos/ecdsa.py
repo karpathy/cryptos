@@ -9,7 +9,7 @@ from io import BytesIO
 from .sha256 import sha256
 from cryptos.bitcoin import BITCOIN
 from cryptos.curves import inv, Point
-from cryptos.keys import gen_private_key, sk_to_pk
+from cryptos.keys import gen_secret_key, PublicKey
 # -----------------------------------------------------------------------------
 
 @dataclass
@@ -66,7 +66,7 @@ class Signature:
         frame = b''.join([bytes([0x30, len(content)]), content])
         return frame
 
-def sign(private_key: int, message: bytes) -> Signature:
+def sign(secret_key: int, message: bytes) -> Signature:
 
     n = BITCOIN.gen.n
 
@@ -74,15 +74,15 @@ def sign(private_key: int, message: bytes) -> Signature:
     # TODO: do we want to do this here? or outside? probably not here
     z = int.from_bytes(sha256(sha256(message)), 'big')
 
-    # generate a new private/public key pair at random
+    # generate a new secret/public key pair at random
     # TODO: make deterministic
     # TODO: make take constant time to mitigate timing attacks
-    k = gen_private_key(n, 'os')
-    P = sk_to_pk(k)
+    k = gen_secret_key(n, 'os')
+    P = PublicKey.from_sk(k)
 
     # calculate the signature
     r = P.x
-    s = inv(k, n) * (z + private_key * r) % n
+    s = inv(k, n) * (z + secret_key * r) % n
     if s > n / 2:
         s = n - s
 

@@ -1,7 +1,7 @@
 """
 A cli tool that generates and prints a new Bitcoin address.
 Specifically, the tool prints:
-- a new private key
+- a new secret key
 - the associated public key
 - the bitcoin address
 """
@@ -13,11 +13,11 @@ from cryptos.btc_address import pk_to_address
 
 if __name__ == '__main__':
 
-    # generate a private/public key pair
+    # generate a secret/public key pair
     source = sys.argv[1] if len(sys.argv) == 2 else 'os' # can also be 'user' | 'mastering'
-    private_key, public_key = gen_key_pair(source) # represented as int
-    print('generated private key:')
-    print(hex(private_key))
+    secret_key, public_key = gen_key_pair(source) # represented as int
+    print('generated secret key:')
+    print(hex(secret_key))
     print('corresponding public key:')
     print('x:', format(public_key.x, '064x').upper()) # (strip the 0x part denoting hex number)
     print('y:', format(public_key.y, '064x').upper())

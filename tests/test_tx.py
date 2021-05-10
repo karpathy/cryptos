@@ -6,7 +6,7 @@ from io import BytesIO
 
 from cryptos.transaction import Tx, TxIn, TxOut, Script
 from cryptos.btc_address import address_to_pkb_hash
-from cryptos.keys import sk_to_pk, pk_to_sec
+from cryptos.keys import PublicKey
 from cryptos.ecdsa import sign
 
 def test_legacy_decode():
@@ -114,8 +114,8 @@ def test_create_tx():
 
     # first produce the <pubkey> that will satisfy OP_EQUALVERIFY on the locking script
     sk = 8675309 # the secret key that produced the public key that produced the hash that is on that input tx's locking script
-    pk = sk_to_pk(sk)
-    sec = pk_to_sec(pk, compressed=True) # sec encoded public key as bytes
+    pk = PublicKey.from_sk(sk)
+    sec = pk.encode(compressed=True) # sec encoded public key as bytes
     # okay but anyone with the knowledge of the public key could have done this part if this public
     # key was previously used (and hence revealed) somewhere on the blockchain
 

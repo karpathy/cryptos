@@ -15,7 +15,7 @@ from io import BytesIO
 from .sha256 import sha256
 from .ripemd160 import ripemd160
 from .ecdsa import verify, Signature
-from .keys import pk_from_sec
+from .keys import PublicKey
 
 # -----------------------------------------------------------------------------
 # helper functions
@@ -358,7 +358,7 @@ class Script:
         der = self.cmds[0][:-1] # DER encoded signature, but crop out the last byte
         sec = self.cmds[1] # SEC encoded public key
         sig = Signature.decode(der)
-        pk = pk_from_sec(sec)
+        pk = PublicKey.decode(sec)
         valid = verify(pk, mod_tx_enc, sig)
 
         return valid
