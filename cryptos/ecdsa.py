@@ -83,6 +83,8 @@ def sign(private_key: int, message: bytes) -> Signature:
     # calculate the signature
     r = P.x
     s = inv(k, n) * (z + private_key * r) % n
+    if s > n / 2:
+        s = n - s
 
     sig = Signature(r, s)
     return sig
