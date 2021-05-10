@@ -23,6 +23,6 @@ if __name__ == '__main__':
     print('y:', format(public_key.y, '064x').upper())
 
     # calculate the bitcoin address
-    addr = pk_to_address(public_key) # is a string in b58check format
+    addr = pk_to_address(public_key, net='main', compressed=True) # is a string in b58check format
     print('compressed bitcoin address (b58check format):')
     print(addr)
