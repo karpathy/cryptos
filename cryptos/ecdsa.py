@@ -56,7 +56,7 @@ class Signature:
         def dern(n):
             nb = n.to_bytes(32, byteorder='big')
             nb = nb.lstrip(b'\x00') # strip leading zeros
-            nb = (b'\x00' if nb[0] >= 80 else b'') + nb # preprend 0x00 if first byte >= 0x80
+            nb = (b'\x00' if nb[0] >= 0x80 else b'') + nb # preprend 0x00 if first byte >= 0x80
             return nb
 
         rb = dern(self.r)
