@@ -17,7 +17,7 @@ class Signature:
     s: int
 
     @classmethod
-    def from_der(cls, der: bytes):
+    def decode(cls, der: bytes):
         """
         According to https://en.bitcoin.it/wiki/BIP_0062#DER_encoding DER has the following format:
         0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S] [sighash-type]

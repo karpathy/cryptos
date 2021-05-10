@@ -357,7 +357,7 @@ class Script:
         assert sighash_type == 1 # 1 is SIGHASH_ALL, most commonly used and only one supported right now
         der = self.cmds[0][:-1] # DER encoded signature, but crop out the last byte
         sec = self.cmds[1] # SEC encoded public key
-        sig = Signature.from_der(der)
+        sig = Signature.decode(der)
         pk = pk_from_sec(sec)
         valid = verify(pk, mod_tx_enc, sig)
 

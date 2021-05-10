@@ -45,11 +45,11 @@ def test_sig_der():
     raw = bytes.fromhex('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
     tx = Tx.decode(BytesIO(raw))
     der = tx.tx_ins[0].script_sig.cmds[0][:-1] # this is the DER signature of the first input on this tx. :-1 crops out the sighash-type byte
-    sig = Signature.from_der(der) # making sure no asserts get tripped up inside this call
+    sig = Signature.decode(der) # making sure no asserts get tripped up inside this call
 
     # from programming bitcoin chapter 4
     der = bytes.fromhex('3045022037206a0610995c58074999cb9767b87af4c4978db68c06e8e6e81d282047a7c60221008ca63759c1157ebeaec0d03cecca119fc9a75bf8e6d0fa65c841c8e2738cdaec')
-    sig = Signature.from_der(der)
+    sig = Signature.decode(der)
     assert sig.r == 0x37206a0610995c58074999cb9767b87af4c4978db68c06e8e6e81d282047a7c6
     assert sig.s == 0x8ca63759c1157ebeaec0d03cecca119fc9a75bf8e6d0fa65c841c8e2738cdaec
 
