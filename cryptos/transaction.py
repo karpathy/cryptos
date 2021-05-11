@@ -209,6 +209,11 @@ class Tx:
                (self.tx_ins[0].prev_tx == b'\x00'*32) and \
                (self.tx_ins[0].prev_index == 0xffffffff)
 
+    def coinbase_height(self) -> int:
+        """ returns the block number of a given transaction, following BIP0034 """
+        return int.from_bytes(self.tx_ins[0].script_sig.cmds[0], 'little') if self.is_coinbase() else None
+
+
 @dataclass
 class TxIn:
     prev_tx: bytes # prev transaction ID: hash256 of prev tx contents
