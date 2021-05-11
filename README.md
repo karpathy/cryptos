@@ -73,6 +73,10 @@ True
 
 This isn't exactly a complete verification as a Bitcoin full node would do and e.g. skips verification of double spends, script sizing limits, etc., and also it only supports the (simpler) p2pkh transactions. Notably, this does not include the "modern" segwit versions used predominantly in today's Bitcoin traffic since the soft fork of BIP141 around July 2017.
 
+### Blocks
+
+See `cryptos/block.py` for Block class, functions and utilities.
+
 ### Unit tests
 
 ```bash
