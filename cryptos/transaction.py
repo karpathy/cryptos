@@ -204,6 +204,10 @@ class Tx:
 
         return True
 
+    def is_coinbase(self) -> bool:
+        return (len(self.tx_ins) == 1) and \
+               (self.tx_ins[0].prev_tx == b'\x00'*32) and \
+               (self.tx_ins[0].prev_index == 0xffffffff)
 
 @dataclass
 class TxIn:
