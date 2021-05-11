@@ -58,3 +58,8 @@ class Block:
         coeff = int.from_bytes(self.bits[:-1], 'little')
         target = coeff * 256**(exponent - 3)
         return target
+
+    def difficulty(self) -> float:
+        genesis_block_target = 0xffff * 256**(0x1d - 3)
+        diff = genesis_block_target / self.target()
+        return diff

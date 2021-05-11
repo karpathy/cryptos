@@ -25,3 +25,6 @@ def test_block():
 
     # Exercise 9
     assert block.target() == 0x0000000000000000013ce9000000000000000000000000000000000000000000
+
+    # Exercise 10
+    assert int(block.difficulty()) == 888171856257 # difficulty of genesis block was 1 :|
