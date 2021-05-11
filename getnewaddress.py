@@ -7,7 +7,6 @@ Specifically, the tool prints:
 """
 
 from cryptos.keys import gen_secret_key, PublicKey
-from cryptos.btc_address import pk_to_address
 from cryptos.bitcoin import BITCOIN
 
 if __name__ == '__main__':
@@ -22,6 +21,6 @@ if __name__ == '__main__':
     print('y:', format(public_key.y, '064x').upper())
 
     # get the associated bitcoin address
-    addr = pk_to_address(public_key, net='main', compressed=True)
+    addr = public_key.address(net='main', compressed=True)
     print('compressed bitcoin address (b58check format):')
     print(addr)
