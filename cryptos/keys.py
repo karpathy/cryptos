@@ -9,6 +9,8 @@ import time
 
 from .curves import Point
 from .bitcoin import BITCOIN
+from .sha256 import sha256
+from .ripemd160 import ripemd160
 
 # -----------------------------------------------------------------------------
 # Secret key generation. We're going to leave secret key as just a super plain int
@@ -70,10 +72,60 @@ class PublicKey(Point):
         y = y if ((y % 2 == 0) == is_even) else p - y # flip if needed to make the evenness agree
         return cls(BITCOIN.gen.G.curve, x, y)
 
-    def encode(self, compressed=True):
+    def encode(self, compressed, hash160=False):
         """ return the SEC bytes encoding of the public key Point """
+        # calculate the bytes
         if compressed:
             prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
-            return prefix + self.x.to_bytes(32, 'big')
+            pkb = prefix + self.x.to_bytes(32, 'big')
         else:
-            return b'\x04' + self.x.to_bytes(32, 'big') + self.y.to_bytes(32, 'big')
+            pkb = b'\x04' + self.x.to_bytes(32, 'big') + self.y.to_bytes(32, 'big')
+        # hash if desired
+        return ripemd160(sha256(pkb)) if hash160 else pkb
+
+    def address(self, net: str, compressed: bool) -> str:
+        """ return the associated bitcoin address for this public key as string """
+        # encode the public key into bytes and hash to get the payload
+        pkb_hash = self.encode(compressed=compressed, hash160=True)
+        # add version byte (0x00 for Main Network, or 0x6f for Test Network)
+        version = {'main': b'\x00', 'test': b'\x6f'}
+        ver_pkb_hash = version[net] + pkb_hash
+        # calculate the checksum
+        checksum = sha256(sha256(ver_pkb_hash))[:4]
+        # append to form the full 25-byte binary Bitcoin Address
+        byte_address = ver_pkb_hash + checksum
+        # finally b58 encode the result
+        b58check_address = b58encode(byte_address)
+        return b58check_address
+
+# -----------------------------------------------------------------------------
+# base58 encoding / decoding utilities
+# reference: https://en.bitcoin.it/wiki/Base58Check_encoding
+
+alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+alphabet_inv = {c:i for i,c in enumerate(alphabet)}
+
+def b58encode(b: bytes) -> str:
+    assert len(b) == 25 # version is 1 byte, pkb_hash 20 bytes, checksum 4 bytes
+    n = int.from_bytes(b, 'big')
+    chars = []
+    while n:
+        n, i = divmod(n, 58)
+        chars.append(alphabet[i])
+    # special case handle the leading 0 bytes... ¯\_(ツ)_/¯
+    num_leading_zeros = len(b) - len(b.lstrip(b'\x00'))
+    res = num_leading_zeros * alphabet[0] + ''.join(reversed(chars))
+    return res
+
+def b58decode(res: str) -> bytes:
+    n = sum(alphabet_inv[c] * 58**i for i, c in enumerate(reversed(res)))
+    return n.to_bytes(25, 'big') # version, pkb_hash, checksum bytes
+
+def address_to_pkb_hash(b58check_address: str) -> bytes:
+    """ given an address in b58check recover the public key hash """
+    byte_address = b58decode(b58check_address)
+    # validate the checksum
+    assert byte_address[-4:] == sha256(sha256(byte_address[:-4]))[:4]
+    # strip the version in front and the checksum at tail
+    pkb_hash = byte_address[1:-4]
+    return pkb_hash

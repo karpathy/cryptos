@@ -5,8 +5,7 @@ Test Transaction
 from io import BytesIO
 
 from cryptos.transaction import Tx, TxIn, TxOut, Script
-from cryptos.btc_address import address_to_pkb_hash
-from cryptos.keys import PublicKey
+from cryptos.keys import PublicKey, address_to_pkb_hash
 from cryptos.ecdsa import sign
 
 def test_legacy_decode():

@@ -2,8 +2,7 @@
 Test the generation of secret/public keypairs and bitcoin addreses
 """
 
-from cryptos.keys import PublicKey
-from cryptos.btc_address import pk_to_address, pk_to_address_bytes, address_to_pkb_hash
+from cryptos.keys import PublicKey, address_to_pkb_hash
 from cryptos.bitcoin import BITCOIN
 
 def test_public_key_gen():
@@ -34,15 +33,15 @@ def test_btc_addresses():
     # test address encoding into b58check
     for net, compressed, secret_key, expected_address in tests:
         pk = PublicKey.from_sk(secret_key)
-        addr = pk_to_address(pk, net, compressed)
+        addr = pk.address(net, compressed)
         assert addr == expected_address
 
     # test public key hash decoding from b58check
     for net, compressed, secret_key, address in tests:
         pk = PublicKey.from_sk(secret_key)
         # get the hash160 by stripping version byte and checksum
-        pkb_hash = pk_to_address_bytes(pk, net, compressed)[1:-4] # 20 byte public key hash
-        # now extract from the address
+        pkb_hash = pk.encode(compressed, hash160=True)
+        # now extract from the address, address_to_pkb_hash
         pkb_hash2 = address_to_pkb_hash(address)
         assert pkb_hash == pkb_hash2
 
