@@ -4,7 +4,7 @@ Test Block
 
 from io import BytesIO
 
-from cryptos.block import Block
+from cryptos.block import Block, calculate_new_bits, bits_to_target, target_to_bits
 
 def test_block():
 
@@ -35,3 +35,15 @@ def test_validate():
     block = Block.decode(BytesIO(raw))
     assert not block.validate()
 
+def test_calculate_bits():
+
+    dt = 302400
+    prev_bits = bytes.fromhex('54d80118')
+    next_bits = calculate_new_bits(prev_bits, dt)
+    assert next_bits == bytes.fromhex('00157617')
+
+    # make sure encoding/decidng of bits <-> target works
+    for bits in [prev_bits, next_bits]:
+        target = bits_to_target(bits)
+        bits2 = target_to_bits(target)
+        assert bits == bits2

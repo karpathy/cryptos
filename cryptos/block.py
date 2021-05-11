@@ -19,6 +19,36 @@ def decode_int(s, nbytes, encoding='little'):
 
 def encode_int(i, nbytes, encoding='little'):
     return i.to_bytes(nbytes, encoding)
+
+def bits_to_target(bits):
+    exponent = bits[-1]
+    coeff = int.from_bytes(bits[:-1], 'little')
+    target = coeff * 256**(exponent - 3)
+    return target
+
+def target_to_bits(target):
+    b = target.to_bytes(32, 'big')
+    b = b.lstrip(b'\x00')
+    if b[0] >= 128:
+        # leading bit is a 1, which would interpret this as negative number
+        # shift everything over by 1 byte because for us target is always positive
+        exponent = len(b) + 1 # how long the number is in base 256
+        coeff = b'\x00' + b[:2] # first three digits of the base 256 number
+    else:
+        exponent = len(b)
+        coeff = b[:3]
+    # encode coeff in little endian and exponent is at the end
+    new_bits = coeff[::-1] + bytes([exponent])
+    return new_bits
+
+def calculate_new_bits(prev_bits, dt):
+    two_weeks = 60*60*24*14 # number of seconds in two week period
+    dt = max(min(dt, two_weeks*4), two_weeks//4)
+    prev_target = bits_to_target(prev_bits)
+    new_target = int(prev_target * dt / two_weeks)
+    new_bits = target_to_bits(new_target)
+    return new_bits
+
 # -----------------------------------------------------------------------------
 
 @dataclass
@@ -54,10 +84,7 @@ class Block:
         return sha256(sha256(self.encode()))[::-1].hex()
 
     def target(self) -> int:
-        exponent = self.bits[-1]
-        coeff = int.from_bytes(self.bits[:-1], 'little')
-        target = coeff * 256**(exponent - 3)
-        return target
+        return bits_to_target(self.bits)
 
     def difficulty(self) -> float:
         genesis_block_target = 0xffff * 256**(0x1d - 3)
@@ -65,6 +92,10 @@ class Block:
         return diff
 
     def validate(self) -> bool:
-        """ validate proof of work on this block """
-        hashint = int(self.id(), 16)
-        return hashint < self.target()
+        """ validate this block """
+        # 1) validate bits (target) field (todo)
+        # 2) validate proof of work
+        if int(self.id(), 16) >= self.target():
+            return False
+        # if everything passes the block is good
+        return True
