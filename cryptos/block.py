@@ -52,3 +52,9 @@ class Block:
 
     def id(self) -> str:
         return sha256(sha256(self.encode()))[::-1].hex()
+
+    def target(self) -> int:
+        exponent = self.bits[-1]
+        coeff = int.from_bytes(self.bits[:-1], 'little')
+        target = coeff * 256**(exponent - 3)
+        return target
