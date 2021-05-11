@@ -63,3 +63,8 @@ class Block:
         genesis_block_target = 0xffff * 256**(0x1d - 3)
         diff = genesis_block_target / self.target()
         return diff
+
+    def validate(self) -> bool:
+        """ validate proof of work on this block """
+        hashint = int(self.id(), 16)
+        return hashint < self.target()

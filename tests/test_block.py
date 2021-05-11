@@ -7,7 +7,7 @@ from io import BytesIO
 from cryptos.block import Block
 
 def test_block():
-    # Exercise 3, 4, 5 in Chapter 9 (Blocks) of programming bitcoin
+
     raw = bytes.fromhex('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
 
     block = Block.decode(BytesIO(raw))
@@ -22,9 +22,16 @@ def test_block():
     assert raw == raw2
 
     assert block.id() == '0000000000000000007e9e4c586439b0cdbe13b1370bdd9435d76a644d047523'
-
-    # Exercise 9
     assert block.target() == 0x0000000000000000013ce9000000000000000000000000000000000000000000
-
-    # Exercise 10
     assert int(block.difficulty()) == 888171856257 # difficulty of genesis block was 1 :|
+
+def test_validate():
+
+    raw = bytes.fromhex('04000000fbedbbf0cfdaf278c094f187f2eb987c86a199da22bbb20400000000000000007b7697b29129648fa08b4bcd13c9d5e60abb973a1efac9c8d573c71c807c56c3d6213557faa80518c3737ec1')
+    block = Block.decode(BytesIO(raw))
+    assert block.validate()
+
+    raw = bytes.fromhex('04000000fbedbbf0cfdaf278c094f187f2eb987c86a199da22bbb20400000000000000007b7697b29129648fa08b4bcd13c9d5e60abb973a1efac9c8d573c71c807c56c3d6213557faa80518c3737ec0')
+    block = Block.decode(BytesIO(raw))
+    assert not block.validate()
+
