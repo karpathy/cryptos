@@ -1,5 +1,7 @@
 """
 Classes/utils for connecting to Bitcoin nodes
+
+Protocol Documentation: https://en.bitcoin.it/wiki/Protocol_documentation
 """
 
 from dataclasses import dataclass
