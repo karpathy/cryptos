@@ -99,6 +99,15 @@ class PublicKey(Point):
         return b58check_address
 
 # -----------------------------------------------------------------------------
+# convenience functions
+
+def gen_key_pair():
+    """ generate a (secret, public) key pair in one shot """
+    sk = gen_secret_key(BITCOIN.gen.n)
+    pk = PublicKey.from_sk(sk)
+    return sk, pk
+
+# -----------------------------------------------------------------------------
 # base58 encoding / decoding utilities
 # reference: https://en.bitcoin.it/wiki/Base58Check_encoding
 

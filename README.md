@@ -35,13 +35,8 @@ compressed bitcoin address (b58check format):
 Elliptic Curve Digital Signature Algorithm (ECDSA) implemented in `cryptos/ecdsa.py`, example usage:
 
 ```python
->>> from cryptos.bitcoin import BITCOIN
->>> from cryptos.keys import gen_secret_key, PublicKey
+>>> from cryptos.keys import gen_key_pair
 >>> from cryptos.ecdsa import sign, verify
->>> def gen_key_pair():
->>>     sk = gen_secret_key(BITCOIN.gen.n)
->>>     pk = PublicKey.from_sk(sk)
->>>     return sk, pk
 >>> sk1, pk1 = gen_key_pair()
 >>> sk2, pk2 = gen_key_pair()
 >>> message = ('pk1 wants to pay pk2 1 BTC').encode('ascii')

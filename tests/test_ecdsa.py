@@ -6,16 +6,11 @@ import os
 from io import BytesIO
 
 from cryptos.bitcoin import BITCOIN
-from cryptos.keys import gen_secret_key, PublicKey
+from cryptos.keys import gen_key_pair
 from cryptos.ecdsa import Signature, sign, verify
 from cryptos.transaction import Tx
 
 def test_ecdsa():
-
-    def gen_key_pair():
-        sk = gen_secret_key(BITCOIN.gen.n)
-        pk = PublicKey.from_sk(sk)
-        return sk, pk
 
     # let's create two identities
     sk1, pk1 = gen_key_pair()
