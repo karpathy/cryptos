@@ -3,7 +3,7 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope, VersionMessage, SimpleNode
+from cryptos.network import NetworkEnvelope, VersionMessage, GetHeadersMessage, SimpleNode
 
 def test_encode_decode_network_envelope():
 
@@ -23,13 +23,20 @@ def test_encode_decode_network_envelope():
 
 def test_encode_version_payload():
 
-    v = VersionMessage(
+    m = VersionMessage(
         timestamp=0,
         nonce=b'\x00'*8,
         user_agent=b'/programmingbitcoin:0.1/',
     )
 
-    assert v.encode().hex() == '7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff00000000208d000000000000000000000000000000000000ffff00000000208d0000000000000000182f70726f6772616d6d696e67626974636f696e3a302e312f0000000000'
+    assert m.encode().hex() == '7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff00000000208d000000000000000000000000000000000000ffff00000000208d0000000000000000182f70726f6772616d6d696e67626974636f696e3a302e312f0000000000'
+
+def test_encode_getheaders_payload():
+    block_hex = '0000000000000000001237f46acddf58578a37e213d2a6edc4884a2fcad05ba3'
+    m = GetHeadersMessage(
+        start_block=bytes.fromhex(block_hex),
+    )
+    assert m.encode().hex() == '7f11010001a35bd0ca2f4a88c4eda6d213e2378a5758dfcd6af437120000000000000000000000000000000000000000000000000000000000000000000000000000000000'
 
 def test_handshake():
 

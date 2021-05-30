@@ -209,6 +209,30 @@ class PongMessage:
     def encode(self):
         return self.nonce
 
+@dataclass
+class GetHeadersMessage:
+    """
+    https://en.bitcoin.it/wiki/Protocol_documentation#getheaders
+    """
+    version: int = 70015 # uint32_t protocol version
+    num_hashes: int = 1 # var_int, number of block locator hash entries; can be >1 if there is a chain split
+    start_block: bytes = None # char[32] block locator object
+    end_block: bytes = None # char[32] hash of the last desired block header; set to zero to get as many blocks as possible
+    command: str = field(init=False, default=b'getheaders')
+
+    def __post_init__(self):
+        assert isinstance(self.start_block, bytes) and len(self.start_block) == 32
+        self.end_block = self.end_block if self.end_block is not None else b'\x00' * 32
+        assert isinstance(self.end_block, bytes) and len(self.end_block) == 32
+
+    def encode(self):
+        out = []
+        out += [self.version.to_bytes(4, 'little')]
+        out += [encode_varint(self.num_hashes)]
+        out += [self.start_block[::-1]] # little-endian
+        out += [self.end_block[::-1]] # little-endian
+        return b''.join(out)
+
 # -----------------------------------------------------------------------------
 # A super lightweight baby node follows
 # -----------------------------------------------------------------------------
