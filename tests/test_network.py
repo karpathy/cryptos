@@ -3,7 +3,7 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope
+from cryptos.network import NetworkEnvelope, VersionMessage
 
 def test_encode_decode_network_envelope():
 
@@ -20,3 +20,13 @@ def test_encode_decode_network_envelope():
     assert envelope.command == b'version'
     assert envelope.payload == msg[24:]
     assert envelope.encode() == msg
+
+def test_encode_version_payload():
+
+    v = VersionMessage(
+        timestamp=0,
+        nonce=b'\x00'*8,
+        user_agent=b'/programmingbitcoin:0.1/',
+    )
+
+    assert v.encode().hex() == '7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff00000000208d000000000000000000000000000000000000ffff00000000208d0000000000000000182f70726f6772616d6d696e67626974636f696e3a302e312f0000000000'

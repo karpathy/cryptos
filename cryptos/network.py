@@ -7,6 +7,7 @@ Protocol Documentation: https://en.bitcoin.it/wiki/Protocol_documentation
 from dataclasses import dataclass
 from io import BytesIO
 from .sha256 import sha256
+from .transaction import encode_varint
 
 MAGICS = {
     'main': b'\xf9\xbe\xb4\xd9',
@@ -61,3 +62,76 @@ class NetworkEnvelope:
 
     def stream(self):
         return BytesIO(self.payload)
+
+"""
+-------------------------------------------------------------------------------
+Specific types of commands and their payload encoder/decords follow
+-------------------------------------------------------------------------------
+"""
+
+@dataclass
+class VersionMessage:
+    """ reference: https://en.bitcoin.it/wiki/Protocol_documentation#version """
+
+    # header information
+    version: int = 70015 # specifies what messages may be communicated
+    services: int = 0 # info about what capabilities are available
+    timestamp: int = None # 8 bytes Unix timestamp in little-endian
+    # receiver information (explicit) net_addr
+    receiver_services: int = 0
+    receiver_ip: bytes = b'\x00\x00\x00\x00' # assumed to be IPv4 here
+    receiver_port: int = 8333
+    # sender information (explicit) net_addr
+    sender_services: int = 0
+    sender_ip: bytes = b'\x00\x00\x00\x00' # assumed to be IPv4 here
+    sender_port: int = 8333
+    # additional metadata
+    """
+    uint64_t Node random nonce, randomly generated every time a version
+    packet is sent. This nonce is used to detect connections to self.
+    """
+    nonce: bytes = None # 8 bytes of nonce
+    user_agent: bytes = None # var_str: User Agent
+    latest_block: int = 0 # "The last block received by the emitting node"
+    relay: bool = False # Whether the remote peer should announce relayed transactions or not, see BIP 0037
+
+    def encode(self):
+        out = []
+
+        # version is 4 bytes little endian
+        out += [self.version.to_bytes(4, 'little')]
+        # services is 8 bytes little endian
+        out += [self.services.to_bytes(8, 'little')]
+        # timestamp is 8 bytes little endian
+        out += [self.timestamp.to_bytes(8, 'little')]
+
+        # receiver services is 8 bytes little endian
+        out += [self.receiver_services.to_bytes(8, 'little')]
+        # IPV4 is 10 00 bytes and 2 ff bytes then receiver ip
+        assert isinstance(self.receiver_ip, bytes) and len(self.receiver_ip) == 4
+        out += [b'\x00' * 10 + b'\xff\xff' + self.receiver_ip]
+        # receiver port is 2 bytes, big endian
+        out += [self.receiver_port.to_bytes(2, 'big')]
+
+        # sender services is 8 bytes little endian
+        out += [self.sender_services.to_bytes(8, 'little')]
+        # IPV4 is 10 00 bytes and 2 ff bytes then sender ip
+        assert isinstance(self.sender_ip, bytes) and len(self.sender_ip) == 4
+        out += [b'\x00' * 10 + b'\xff\xff' + self.sender_ip]
+        # sender port is 2 bytes, big endian
+        out += [self.sender_port.to_bytes(2, 'big')]
+
+        # nonce should be 8 bytes
+        assert isinstance(self.nonce, bytes) and len(self.nonce) == 8
+        out += [self.nonce]
+        # useragent is a variable string, so varint first
+        assert isinstance(self.user_agent, bytes)
+        out += [encode_varint(len(self.user_agent))]
+        out += [self.user_agent]
+
+        # latest block is 4 bytes little endian
+        out += [self.latest_block.to_bytes(4, 'little')]
+        # relay is 00 if false, 01 if true
+        out += [b'\x01' if self.relay else b'\x00']
+
+        return b''.join(out)
