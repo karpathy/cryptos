@@ -254,15 +254,26 @@ class SimpleNode:
         return command_to_class[command].decode(env.stream())
 
     def handshake(self):
-        """ Version! VerAck. Version. VerAck! """
+        """
+        Version Handshake
+        ref: https://en.bitcoin.it/wiki/Version_Handshake
+
+        Local peer (L) connects to a remote peer (R):
+        L -> R: Send version message with the local peer's version
+        R -> L: Send version message back
+        R -> L: Send verack message
+        R:      Sets version to the minimum of the 2 versions
+        L -> R: Send verack message after receiving version message from R
+        L:      Sets version to the minimum of the 2 versions
+        """
         version = VersionMessage(
             timestamp=0,
             nonce=b'\x00'*8,
             user_agent=b'/programmingbitcoin:0.1/',
         )
         self.send(version)
-        self.wait_for(VersionMessage, VerAckMessage)
-        self.wait_for(VersionMessage, VerAckMessage)
+        self.wait_for(VersionMessage)
+        self.wait_for(VerAckMessage)
         self.send(VerAckMessage())
 
     def close(self):
