@@ -268,8 +268,9 @@ class HeadersMessage:
 
 class SimpleNode:
 
-    def __init__(self, host: str, net: str):
+    def __init__(self, host: str, net: str, verbose: int = 0):
         self.net = net
+        self.verbose = verbose
 
         port = {'main': 8333, 'test': 18333}[net]
         self.socket = socket.socket()
@@ -278,12 +279,14 @@ class SimpleNode:
 
     def send(self, message):
         env = NetworkEnvelope(message.command, message.encode(), net=self.net)
-        print(f"sending: {env}")
+        if self.verbose:
+            print(f"sending: {env}")
         self.socket.sendall(env.encode())
 
     def read(self):
         env = NetworkEnvelope.decode(self.stream, net=self.net)
-        print(f"receiving: {env}")
+        if self.verbose:
+            print(f"receiving: {env}")
         return env
 
     def wait_for(self, *message_classes):
