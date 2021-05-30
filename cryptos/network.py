@@ -4,12 +4,15 @@ Classes/utils for connecting to Bitcoin nodes
 Protocol Documentation: https://en.bitcoin.it/wiki/Protocol_documentation
 """
 
-import socket
 from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Union
+
+import socket
 from io import BytesIO
 
 from .sha256 import sha256
-from .transaction import encode_varint
+from .transaction import encode_varint, decode_varint
+from .block import Block
 
 # -----------------------------------------------------------------------------
 
@@ -232,6 +235,32 @@ class GetHeadersMessage:
         out += [self.start_block[::-1]] # little-endian
         out += [self.end_block[::-1]] # little-endian
         return b''.join(out)
+
+@dataclass
+class HeadersMessage:
+    """
+    https://en.bitcoin.it/wiki/Protocol_documentation#headers
+    """
+    blocks: List[Block] = None
+    command: str = field(init=False, default=b'headers')
+
+    @classmethod
+    def decode(cls, s):
+        count = decode_varint(s)
+        blocks = []
+        for _ in range(count):
+            b = Block.decode(s)
+            blocks.append(b)
+            """
+            the number of transactions is also given and is always zero if we
+            only request the headers. This is done so that the same code can be
+            used to decode the "block" message, which contains the full block
+            information with all the transactions attached. Here we just make
+            sure it is zero.
+            """
+            num_transactions = decode_varint(s)
+            assert num_transactions == 0
+        return cls(blocks)
 
 # -----------------------------------------------------------------------------
 # A super lightweight baby node follows

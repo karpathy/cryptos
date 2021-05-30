@@ -3,7 +3,14 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope, VersionMessage, GetHeadersMessage, SimpleNode
+from cryptos.network import NetworkEnvelope
+from cryptos.network import (
+    VersionMessage,
+    GetHeadersMessage,
+    HeadersMessage,
+)
+from cryptos.network import SimpleNode
+from cryptos.block import Block
 
 def test_encode_decode_network_envelope():
 
@@ -37,6 +44,14 @@ def test_encode_getheaders_payload():
         start_block=bytes.fromhex(block_hex),
     )
     assert m.encode().hex() == '7f11010001a35bd0ca2f4a88c4eda6d213e2378a5758dfcd6af437120000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+
+def test_decode_headers_payload():
+    hex_msg = '0200000020df3b053dc46f162a9b00c7f0d5124e2676d47bbe7c5d0793a500000000000000ef445fef2ed495c275892206ca533e7411907971013ab83e3b47bd0d692d14d4dc7c835b67d8001ac157e670000000002030eb2540c41025690160a1014c577061596e32e426b712c7ca00000000000000768b89f07044e6130ead292a3f51951adbd2202df447d98789339937fd006bd44880835b67d8001ade09204600'
+    s = BytesIO(bytes.fromhex(hex_msg))
+    headers = HeadersMessage.decode(s)
+    assert len(headers.blocks) == 2
+    for b in headers.blocks:
+        assert isinstance(b, Block)
 
 def test_handshake():
 
