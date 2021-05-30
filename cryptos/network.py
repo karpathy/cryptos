@@ -4,7 +4,7 @@ Classes/utils for connecting to Bitcoin nodes
 Protocol Documentation: https://en.bitcoin.it/wiki/Protocol_documentation
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from .sha256 import sha256
 from .transaction import encode_varint
@@ -70,6 +70,28 @@ Specific types of commands and their payload encoder/decords follow
 """
 
 @dataclass
+class NetAddrStruct:
+    """
+    reference: https://en.bitcoin.it/wiki/Protocol_documentation#Network_address
+    currently assumes IPv4 address
+    """
+    services: int = 0
+    ip: bytes = b'\x00\x00\x00\x00' # IPv4 address
+    port: int = 8333
+
+    def encode(self):
+        out = []
+        # receiver services is 8 bytes little endian
+        out += [self.services.to_bytes(8, 'little')]
+        # IPV4 is 10 00 bytes and 2 ff bytes then receiver ip
+        assert isinstance(self.ip, bytes) and len(self.ip) == 4
+        out += [b'\x00' * 10 + b'\xff\xff' + self.ip]
+        # receiver port is 2 bytes, big endian
+        out += [self.port.to_bytes(2, 'big')]
+        return b''.join(out)
+
+
+@dataclass
 class VersionMessage:
     """ reference: https://en.bitcoin.it/wiki/Protocol_documentation#version """
 
@@ -77,14 +99,10 @@ class VersionMessage:
     version: int = 70015 # specifies what messages may be communicated
     services: int = 0 # info about what capabilities are available
     timestamp: int = None # 8 bytes Unix timestamp in little-endian
-    # receiver information (explicit) net_addr
-    receiver_services: int = 0
-    receiver_ip: bytes = b'\x00\x00\x00\x00' # assumed to be IPv4 here
-    receiver_port: int = 8333
-    # sender information (explicit) net_addr
-    sender_services: int = 0
-    sender_ip: bytes = b'\x00\x00\x00\x00' # assumed to be IPv4 here
-    sender_port: int = 8333
+    # receiver net_addr
+    receiver: NetAddrStruct = field(default_factory=NetAddrStruct)
+    # sender net_addr
+    sender: NetAddrStruct = field(default_factory=NetAddrStruct)
     # additional metadata
     """
     uint64_t Node random nonce, randomly generated every time a version
@@ -104,23 +122,10 @@ class VersionMessage:
         out += [self.services.to_bytes(8, 'little')]
         # timestamp is 8 bytes little endian
         out += [self.timestamp.to_bytes(8, 'little')]
-
-        # receiver services is 8 bytes little endian
-        out += [self.receiver_services.to_bytes(8, 'little')]
-        # IPV4 is 10 00 bytes and 2 ff bytes then receiver ip
-        assert isinstance(self.receiver_ip, bytes) and len(self.receiver_ip) == 4
-        out += [b'\x00' * 10 + b'\xff\xff' + self.receiver_ip]
-        # receiver port is 2 bytes, big endian
-        out += [self.receiver_port.to_bytes(2, 'big')]
-
-        # sender services is 8 bytes little endian
-        out += [self.sender_services.to_bytes(8, 'little')]
-        # IPV4 is 10 00 bytes and 2 ff bytes then sender ip
-        assert isinstance(self.sender_ip, bytes) and len(self.sender_ip) == 4
-        out += [b'\x00' * 10 + b'\xff\xff' + self.sender_ip]
-        # sender port is 2 bytes, big endian
-        out += [self.sender_port.to_bytes(2, 'big')]
-
+        # receiver
+        out += [self.receiver.encode()]
+        # sender
+        out += [self.sender.encode()]
         # nonce should be 8 bytes
         assert isinstance(self.nonce, bytes) and len(self.nonce) == 8
         out += [self.nonce]
