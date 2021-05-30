@@ -4,10 +4,14 @@ Classes/utils for connecting to Bitcoin nodes
 Protocol Documentation: https://en.bitcoin.it/wiki/Protocol_documentation
 """
 
+import socket
 from dataclasses import dataclass, field
 from io import BytesIO
+
 from .sha256 import sha256
 from .transaction import encode_varint
+
+# -----------------------------------------------------------------------------
 
 MAGICS = {
     'main': b'\xf9\xbe\xb4\xd9',
@@ -61,13 +65,12 @@ class NetworkEnvelope:
         return b''.join(out)
 
     def stream(self):
+        """ Stream the payload of this envelope """
         return BytesIO(self.payload)
 
-"""
--------------------------------------------------------------------------------
-Specific types of commands and their payload encoder/decords follow
--------------------------------------------------------------------------------
-"""
+# -----------------------------------------------------------------------------
+# Specific types of commands and their payload encoder/decords follow
+# -----------------------------------------------------------------------------
 
 @dataclass
 class NetAddrStruct:
@@ -93,7 +96,12 @@ class NetAddrStruct:
 
 @dataclass
 class VersionMessage:
-    """ reference: https://en.bitcoin.it/wiki/Protocol_documentation#version """
+    """
+    reference: https://en.bitcoin.it/wiki/Protocol_documentation#version
+    When a node creates an outgoing connection, it will immediately advertise
+    its version. The remote node will respond with its version. No further
+    communication is possible until both peers have exchanged their version.
+    """
 
     # header information
     version: int = 70015 # specifies what messages may be communicated
@@ -112,6 +120,12 @@ class VersionMessage:
     user_agent: bytes = None # var_str: User Agent
     latest_block: int = 0 # "The last block received by the emitting node"
     relay: bool = False # Whether the remote peer should announce relayed transactions or not, see BIP 0037
+    command: str = field(init=False, default=b'version')
+
+    @classmethod
+    def decode(cls, s):
+        # TODO. For now return a fixed default stub
+        return cls()
 
     def encode(self):
         out = []
@@ -140,3 +154,116 @@ class VersionMessage:
         out += [b'\x01' if self.relay else b'\x00']
 
         return b''.join(out)
+
+@dataclass
+class VerAckMessage:
+    """
+    https://en.bitcoin.it/wiki/Protocol_documentation#verack
+    The verack message is sent in reply to version. This message
+    consists of only a message header with the command string "verack".
+    """
+    command: str = field(init=False, default=b'verack')
+
+    @classmethod
+    def decode(cls, s):
+        return cls()
+
+    def encode(self):
+        return b''
+
+@dataclass
+class PingMessage:
+    """
+    https://en.bitcoin.it/wiki/Protocol_documentation#ping
+    The ping message is sent primarily to confirm that the TCP/IP
+    connection is still valid. An error in transmission is presumed
+    to be a closed connection and the address is removed as a current peer.
+    """
+    nonce: bytes
+    command: str = field(init=False, default=b'ping')
+
+    @classmethod
+    def decode(cls, s):
+        nonce = s.read(8)
+        return cls(nonce)
+
+    def encode(self):
+        return self.nonce
+
+@dataclass
+class PongMessage:
+    """
+    https://en.bitcoin.it/wiki/Protocol_documentation#pong
+    The pong message is sent in response to a ping message.
+    In modern protocol versions, a pong response is generated
+    using a nonce included in the ping.
+    """
+    nonce: bytes
+    command: str = field(init=False, default=b'pong')
+
+    @classmethod
+    def decode(cls, s):
+        nonce = s.read(8)
+        return cls(nonce)
+
+    def encode(self):
+        return self.nonce
+
+# -----------------------------------------------------------------------------
+# A super lightweight baby node follows
+# -----------------------------------------------------------------------------
+
+class SimpleNode:
+
+    def __init__(self, host: str, net: str):
+        self.net = net
+
+        port = {'main': 8333, 'test': 18333}[net]
+        self.socket = socket.socket()
+        self.socket.connect((host, port))
+        self.stream = self.socket.makefile('rb', None)
+
+    def send(self, message):
+        env = NetworkEnvelope(message.command, message.encode(), net=self.net)
+        print(f"sending: {env}")
+        self.socket.sendall(env.encode())
+
+    def read(self):
+        env = NetworkEnvelope.decode(self.stream, net=self.net)
+        print(f"receiving: {env}")
+        return env
+
+    def wait_for(self, *message_classes):
+        command = None
+        command_to_class = { m.command: m for m in message_classes }
+
+        # loop until one of the desired commands is encountered
+        while command not in command_to_class:
+            env = self.read()
+            command = env.command
+
+            # respond to Version with VerAck
+            if command == VersionMessage.command:
+                self.send(VerAckMessage())
+
+            # respond to Ping with Pong
+            elif command == PingMessage.command:
+                self.send(PongMessage(env.payload))
+
+        # return the parsed message
+        return command_to_class[command].decode(env.stream())
+
+    def handshake(self):
+        """ Version! VerAck. Version. VerAck! """
+        version = VersionMessage(
+            timestamp=0,
+            nonce=b'\x00'*8,
+            user_agent=b'/programmingbitcoin:0.1/',
+        )
+        self.send(version)
+        self.wait_for(VersionMessage, VerAckMessage)
+        self.wait_for(VersionMessage, VerAckMessage)
+        self.send(VerAckMessage())
+
+    def close(self):
+        self.socket.close()

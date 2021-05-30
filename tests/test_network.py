@@ -3,7 +3,7 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope, VersionMessage
+from cryptos.network import NetworkEnvelope, VersionMessage, SimpleNode
 
 def test_encode_decode_network_envelope():
 
@@ -30,3 +30,12 @@ def test_encode_version_payload():
     )
 
     assert v.encode().hex() == '7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff00000000208d000000000000000000000000000000000000ffff00000000208d0000000000000000182f70726f6772616d6d696e67626974636f696e3a302e312f0000000000'
+
+def test_handshake():
+
+    node = SimpleNode(
+        host='testnet.programmingbitcoin.com',
+        net='test',
+    )
+    node.handshake()
+    node.close()
