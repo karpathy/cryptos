@@ -77,6 +77,90 @@ This isn't exactly a complete verification as a Bitcoin full node would do and e
 
 See `cryptos/block.py` for Block class, functions and utilities.
 
+### Lightweight Node
+
+A lightweight Bitcoin Node that speaks a subset of the [Bitcoin protocol](https://en.bitcoin.it/wiki/Protocol_documentation) is in `cryptos/network.py`. This node connects to other nodes using Python's `socket`, performs version handshake and then can request block headers. E.g. we can walk the first 40,000 blocks (in batches of 2,000) and partially validate them. A Bitoin full node would fetch the full block (not just headers) with all transactions and also validate those, etc. But a partial validation would look like:
+
+```python
+
+from io import BytesIO
+from cryptos.block import Block, GENESIS_BLOCK, calculate_new_bits
+from cryptos.network import SimpleNode
+from cryptos.network import (
+    GetHeadersMessage,
+    HeadersMessage,
+)
+
+# connect to a node and pretty please ask for
+# 20 block headers starting with the genesis block
+
+# Start with the genesis block
+# https://en.bitcoin.it/wiki/Genesis_block
+# class Block:
+#     version: int        # 4 bytes little endian
+#     prev_block: bytes   # 32 bytes, little endian
+#     merkle_root: bytes  # 32 bytes, little endian
+#     timestamp: int      # uint32, seconds since 1970-01-01T00:00 UTC
+#     bits: bytes         # 4 bytes, current target in compact format
+#     nonce: bytes        # 4 bytes, searched over in pow
+previous = Block.decode(BytesIO(GENESIS_BLOCK['main']))
+
+# okay now let's crawl the blockchain block headers
+node = SimpleNode(
+    host='mainnet.programmingbitcoin.com',
+    net='main',
+)
+node.handshake()
+
+blocks = [previous]
+for _ in range(20):
+
+    # request next batch of 2,000 headers
+    getheaders = GetHeadersMessage(start_block=bytes.fromhex(previous.id()))
+    node.send(getheaders)
+    headers = node.wait_for(HeadersMessage)
+
+    # extend our chain of block headers
+    blocks.extend(headers.blocks)
+
+    previous = headers.blocks[-1]
+    print(f"received another batch of blocks, now have {len(blocks)}")
+
+node.close()
+# we now have 40,001 blocks total, 80 bytes each in raw, so total of ~3.2MB of data
+
+# now (partially) validate blockchain integrity
+for i, block in enumerate(blocks):
+
+    # validate proof of work on this block
+    assert block.validate()
+
+    # validate pointer to the previous node matches
+    prev = blocks[i - 1]
+    expected_prev_block = b'\x00'*32 if i == 0 else bytes.fromhex(prev.id())
+    assert block.prev_block == expected_prev_block
+
+    # validate the proof of work target calculation on the block was correct
+    if i % 2016 == 0:
+        if i == 0:
+            # genesis block had hardcoded value for bits
+            expected_bits = bytes.fromhex('ffff001d')
+        else:
+            # recalculate the target at every epoch (2016 blocks), approx 2 week period
+            # note that Satoshi had an off-by-one bug in this calculation because we are
+            # looking at timestamp difference between first and last block in an epoch,
+            # so these are only 2015 blocks apart instead of 2016 blocks apart ¯\_(ツ)_/¯
+            prev_epoch = blocks[i - 2016]
+            time_diff = prev.timestamp - prev_epoch.timestamp
+            expected_bits = calculate_new_bits(prev.bits, time_diff)
+    assert block.bits == expected_bits
+
+    if i % 1000 == 0:
+        print(f"on block {i+1}/{len(blocks)}")
+```
+
+It feels very nice to independently at least partially verify the integrity of the block chain :)
+
 ### Unit tests
 
 ```bash
