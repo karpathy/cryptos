@@ -52,6 +52,7 @@ def calculate_new_bits(prev_bits, dt):
     dt = max(min(dt, two_weeks*4), two_weeks//4)
     prev_target = bits_to_target(prev_bits)
     new_target = int(prev_target * dt / two_weeks)
+    new_target = min(new_target, 0xffff * 256**(0x1d - 3)) # cap maximum target
     new_bits = target_to_bits(new_target)
     return new_bits
 
