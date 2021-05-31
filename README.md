@@ -79,7 +79,7 @@ See `cryptos/block.py` for Block class, functions and utilities.
 
 ### Lightweight Node
 
-A lightweight Bitcoin Node that speaks a subset of the [Bitcoin protocol](https://en.bitcoin.it/wiki/Protocol_documentation) is in `cryptos/network.py`. This node connects to other nodes using Python's `socket`, performs version handshake and then can request block headers. E.g. we can walk the first 40,000 blocks (in batches of 2,000) and partially validate them. A Bitoin full node would fetch the full block (not just headers) with all transactions and also validate those, etc. But a partial validation would look like:
+A lightweight Bitcoin Node that speaks a subset of the [Bitcoin protocol](https://en.bitcoin.it/wiki/Protocol_documentation) is in `cryptos/network.py`. This node connects to other nodes using Python's `socket`, performs version handshake and then can request block headers. E.g. we can walk the first 40,000 blocks (in batches of 2,000) and partially validate them. A Bitcoin full node would fetch the full block (not just headers) with all transactions and also validate those, etc. But a partial validation would look like:
 
 ```python
 

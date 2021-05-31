@@ -34,7 +34,7 @@ def extended_euclidean_algorithm(a, b):
 
 def inv(n, p):
     """ returns modular multiplicate inverse m s.t. (n * m) % p == 1 """
-    gcd, x, y = extended_euclidean_algorithm(n, p)
+    gcd, x, y = extended_euclidean_algorithm(n, p) # pylint: disable=unused-variable
     return x % p
 
 # -----------------------------------------------------------------------------

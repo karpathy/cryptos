@@ -14,7 +14,7 @@ def test_ecdsa():
 
     # let's create two identities
     sk1, pk1 = gen_key_pair()
-    sk2, pk2 = gen_key_pair()
+    sk2, pk2 = gen_key_pair() # pylint: disable=unused-variable
 
     message = ('user pk1 would like to pay user pk2 1 BTC kkthx').encode('ascii')
 
