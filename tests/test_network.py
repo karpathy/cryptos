@@ -3,7 +3,7 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope, PingMessage, PongMessage
+from cryptos.network import NetworkEnvelope, PingMessage
 from cryptos.network import (
     VersionMessage,
     GetHeadersMessage,

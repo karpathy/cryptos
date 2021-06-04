@@ -207,7 +207,7 @@ class PongMessage:
     using a nonce included in the ping.
     """
     nonce: bytes
-    command: bytes = field(init=False, default=b'pong')
+    command: str = field(init=False, default=b'pong')
 
     @classmethod
     def decode(cls, s):
