@@ -3,7 +3,7 @@ Test node network protocol comms handling classes / utils
 """
 
 from io import BytesIO
-from cryptos.network import NetworkEnvelope
+from cryptos.network import NetworkEnvelope, PingMessage, PongMessage
 from cryptos.network import (
     VersionMessage,
     GetHeadersMessage,
@@ -11,6 +11,10 @@ from cryptos.network import (
 )
 from cryptos.network import SimpleNode
 from cryptos.block import Block
+
+from multiprocessing import Process
+import socket
+
 
 def test_encode_decode_network_envelope():
 
@@ -28,6 +32,7 @@ def test_encode_decode_network_envelope():
     assert envelope.payload == msg[24:]
     assert envelope.encode() == msg
 
+
 def test_encode_version_payload():
 
     m = VersionMessage(
@@ -38,12 +43,14 @@ def test_encode_version_payload():
 
     assert m.encode().hex() == '7f11010000000000000000000000000000000000000000000000000000000000000000000000ffff00000000208d000000000000000000000000000000000000ffff00000000208d0000000000000000182f70726f6772616d6d696e67626974636f696e3a302e312f0000000000'
 
+
 def test_encode_getheaders_payload():
     block_hex = '0000000000000000001237f46acddf58578a37e213d2a6edc4884a2fcad05ba3'
     m = GetHeadersMessage(
         start_block=bytes.fromhex(block_hex),
     )
     assert m.encode().hex() == '7f11010001a35bd0ca2f4a88c4eda6d213e2378a5758dfcd6af437120000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+
 
 def test_decode_headers_payload():
     hex_msg = '0200000020df3b053dc46f162a9b00c7f0d5124e2676d47bbe7c5d0793a500000000000000ef445fef2ed495c275892206ca533e7411907971013ab83e3b47bd0d692d14d4dc7c835b67d8001ac157e670000000002030eb2540c41025690160a1014c577061596e32e426b712c7ca00000000000000768b89f07044e6130ead292a3f51951adbd2202df447d98789339937fd006bd44880835b67d8001ade09204600'
@@ -53,11 +60,38 @@ def test_decode_headers_payload():
     for b in headers.blocks:
         assert isinstance(b, Block)
 
+
 def test_handshake():
 
     node = SimpleNode(
-        host='testnet.programmingbitcoin.com',
+        net='test'
+    )
+    node.connect("testnet.programmingbitcoin.com")
+    node.handshake()
+    node.close()
+
+
+def listen_node():
+    n = SimpleNode(net="test", verbose=1)
+    message = n.listen(PingMessage)
+
+    assert message.command == b"ping"
+    assert message.nonce == b"ping"
+
+    n.close()
+
+
+def test_listen():
+    p = Process(target=listen_node)
+    p.start()
+
+    node = SimpleNode(
         net='test',
     )
-    node.handshake()
+
+    host = socket.gethostbyname(socket.gethostname())
+    node.connect(host)
+    node.send(PingMessage(b"ping"))
+
+    p.join()
     node.close()
