@@ -21,6 +21,7 @@ MAGICS = {
     'test': b'\x0b\x11\x09\x07',
 }
 
+
 @dataclass
 class NetworkEnvelope:
     command: bytes
@@ -58,11 +59,11 @@ class NetworkEnvelope:
         # encode the command
         assert len(self.command) <= 12
         out += [self.command]
-        out += [b'\x00' * (12 - len(self.command))] # command padding
+        out += [b'\x00' * (12 - len(self.command))]  # command padding
         # encode the payload
-        assert len(self.payload) <= 2**32 # in practice reference client nodes will reject >= 32MB...
-        out += [len(self.payload).to_bytes(4, 'little')] # payload length
-        out += [sha256(sha256(self.payload))[:4]] # checksum
+        assert len(self.payload) <= 2**32  # in practice reference client nodes will reject >= 32MB...
+        out += [len(self.payload).to_bytes(4, 'little')]  # payload length
+        out += [sha256(sha256(self.payload))[:4]]  # checksum
         out += [self.payload]
 
         return b''.join(out)
@@ -75,6 +76,7 @@ class NetworkEnvelope:
 # Specific types of commands and their payload encoder/decords follow
 # -----------------------------------------------------------------------------
 
+
 @dataclass
 class NetAddrStruct:
     """
@@ -82,7 +84,7 @@ class NetAddrStruct:
     currently assumes IPv4 address
     """
     services: int = 0
-    ip: bytes = b'\x00\x00\x00\x00' # IPv4 address
+    ip: bytes = b'\x00\x00\x00\x00'  # IPv4 address
     port: int = 8333
 
     def encode(self):
@@ -107,9 +109,9 @@ class VersionMessage:
     """
 
     # header information
-    version: int = 70015 # specifies what messages may be communicated
-    services: int = 0 # info about what capabilities are available
-    timestamp: int = None # 8 bytes Unix timestamp in little-endian
+    version: int = 70015  # specifies what messages may be communicated
+    services: int = 0  # info about what capabilities are available
+    timestamp: int = None  # 8 bytes Unix timestamp in little-endian
     # receiver net_addr
     receiver: NetAddrStruct = field(default_factory=NetAddrStruct)
     # sender net_addr
@@ -119,10 +121,10 @@ class VersionMessage:
     uint64_t Node random nonce, randomly generated every time a version
     packet is sent. This nonce is used to detect connections to self.
     """
-    nonce: bytes = None # 8 bytes of nonce
-    user_agent: bytes = None # var_str: User Agent
-    latest_block: int = 0 # "The last block received by the emitting node"
-    relay: bool = False # Whether the remote peer should announce relayed transactions or not, see BIP 0037
+    nonce: bytes = None  # 8 bytes of nonce
+    user_agent: bytes = None  # var_str: User Agent
+    latest_block: int = 0  # "The last block received by the emitting node"
+    relay: bool = False  # Whether the remote peer should announce relayed transactions or not, see BIP 0037
     command: str = field(init=False, default=b'version')
 
     @classmethod
@@ -158,6 +160,7 @@ class VersionMessage:
 
         return b''.join(out)
 
+
 @dataclass
 class VerAckMessage:
     """
@@ -173,6 +176,7 @@ class VerAckMessage:
 
     def encode(self):
         return b''
+
 
 @dataclass
 class PingMessage:
@@ -193,6 +197,7 @@ class PingMessage:
     def encode(self):
         return self.nonce
 
+
 @dataclass
 class PongMessage:
     """
@@ -212,15 +217,16 @@ class PongMessage:
     def encode(self):
         return self.nonce
 
+
 @dataclass
 class GetHeadersMessage:
     """
     https://en.bitcoin.it/wiki/Protocol_documentation#getheaders
     """
-    version: int = 70015 # uint32_t protocol version
-    num_hashes: int = 1 # var_int, number of block locator hash entries; can be >1 if there is a chain split
-    start_block: bytes = None # char[32] block locator object
-    end_block: bytes = None # char[32] hash of the last desired block header; set to zero to get as many blocks as possible
+    version: int = 70015  # uint32_t protocol version
+    num_hashes: int = 1  # var_int, number of block locator hash entries; can be >1 if there is a chain split
+    start_block: bytes = None  # char[32] block locator object
+    end_block: bytes = None  # char[32] hash of the last desired block header; set to zero to get as many blocks as possible
     command: str = field(init=False, default=b'getheaders')
 
     def __post_init__(self):
@@ -232,9 +238,10 @@ class GetHeadersMessage:
         out = []
         out += [self.version.to_bytes(4, 'little')]
         out += [encode_varint(self.num_hashes)]
-        out += [self.start_block[::-1]] # little-endian
-        out += [self.end_block[::-1]] # little-endian
+        out += [self.start_block[::-1]]  # little-endian
+        out += [self.end_block[::-1]]  # little-endian
         return b''.join(out)
+
 
 @dataclass
 class HeadersMessage:
@@ -266,16 +273,19 @@ class HeadersMessage:
 # A super lightweight baby node follows
 # -----------------------------------------------------------------------------
 
+
 class SimpleNode:
 
-    def __init__(self, host: str, net: str, verbose: int = 0):
+    def __init__(self, net: str, verbose: int = 0):
         self.net = net
         self.verbose = verbose
 
-        port = {'main': 8333, 'test': 18333}[net]
+        self.port = {'main': 8333, 'test': 18333}[net]
         self.socket = socket.socket()
-        self.socket.connect((host, port))
         self.stream = self.socket.makefile('rb', None)
+
+    def connect(self, host):
+        self.socket.connect((host, self.port))
 
     def send(self, message):
         env = NetworkEnvelope(message.command, message.encode(), net=self.net)
@@ -289,9 +299,40 @@ class SimpleNode:
             print(f"receiving: {env}")
         return env
 
+    def listen(self, *message_classes):
+        command = None
+        command_to_class = {m.command: m for m in message_classes}
+        host = socket.gethostbyname(socket.gethostname())
+
+        # Listener socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Bind and listen for any connections
+        s.bind((host, self.port))
+        s.listen()
+
+        while command not in message_classes:
+            # Accept new connection
+            connection, client_address = s.accept()
+
+            # Creeate new stream from the new connection
+            self.stream = connection.makefile("rb")
+
+            with connection:
+                if self.verbose:
+                    print("Connection received by " + client_address[0]+"\n")
+
+                env = self.read()
+                command = env.command
+
+            if env.command in command_to_class:
+                return command_to_class[command].decode(env.stream())
+
+        return None
+
     def wait_for(self, *message_classes):
         command = None
-        command_to_class = { m.command: m for m in message_classes }
+        command_to_class = {m.command: m for m in message_classes}
 
         # loop until one of the desired commands is encountered
         while command not in command_to_class:
